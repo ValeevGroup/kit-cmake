@@ -26,6 +26,8 @@ set(XLF_LIBRARIES ${OLCF_XLF_ROOT}/lib/libxlf90_r.a;${OLCF_XLF_ROOT}/lib/libxlfm
 set(BLAS_LIBRARIES ${OLCF_ESSL_ROOT}/lib64/libessl.so;${XLF_LIBRARIES})
 set(LAPACK_LIBRARIES $ENV{OLCF_NETLIB_LAPACK_ROOT}/lib64/liblapack.a;-lgfortran;${BLAS_LIBRARIES})
 set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
+set(BLAS_FOUND TRUE CACHE BOOL "Whether library implementing the BLAS interface is found")
+set(LAPACK_FOUND TRUE CACHE BOOL "Whether library implementing the LAPACK interface is found")
 
 # Set build params
 set(BUILD_SHARED_LIBS OFF)
