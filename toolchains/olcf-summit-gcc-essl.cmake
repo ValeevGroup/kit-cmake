@@ -1,8 +1,6 @@
 #
-# N.B. load the following modules: gcc, cmake, essl, boost, netlib-lapack
+# N.B. load the following modules: gcc, spectrum-mpi, cuda, boost, essl, netlib-lapack
 #
-
-set(CMAKE_SYSTEM_NAME Linux)
 
 # Set environment paths
 # N.B. since loading gcc purges xl must specify XLF root manually
