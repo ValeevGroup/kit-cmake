@@ -84,7 +84,27 @@ elseif (MKL_THREADING STREQUAL "OMP")
 endif()
 list(APPEND _mkl_libraries "-lpthread;-lm;-ldl")
 
+# LAPACK
 set(LAPACK_LIBRARIES "${_mkl_libraries}" CACHE STRING "LAPACK libraries")
 set(LAPACK_INCLUDE_DIRS ${MKL_ROOT_DIR}/include CACHE STRING "LAPACK include directories")
 set(_mkl_compile_definitions "MADNESS_LINALG_USE_LAPACKE;MKL_INT=$<IF:$<BOOL:${INTEGER4}>,int,long>")
 set(LAPACK_COMPILE_DEFINITIONS "${_mkl_compile_definitions}" CACHE STRING "LAPACK preprocessor definitions")
+
+# for wavefunction91's FindLAPACK
+set(lapack_LIBRARIES "${LAPACK_LIBRARIES}" CACHE STRING "LAPACK libraries")
+
+# BLACS
+if (NOT BLA_STATIC)
+  set(_blacs_lib "-lmkl_blacs_mpich_${_mkl_fortran_int}")
+else(NOT BLA_STATIC)
+  set(_blacs_lib "${_mkl_lib_dir}/libmkl_blacs_mpich_${_mkl_fortran_int}${_mkl_static_library_suffix}")
+endif(NOT BLA_STATIC)
+set(blacs_LIBRARIES "${_blacs_lib};${LAPACK_LIBRARIES}" CACHE STRING "BLACS libraries")
+
+# ScaLAPACK
+if (NOT BLA_STATIC)
+  set(_scalapack_lib "-lmkl_scalapack_${_mkl_fortran_int}")
+else(NOT BLA_STATIC)
+  set(_scalapack_lib "${_mkl_lib_dir}/libmkl_scalapack_${_mkl_fortran_int}${_mkl_static_library_suffix}")
+endif(NOT BLA_STATIC)
+set(scalapack_LIBRARIES "${_scalapack_lib};${blacs_LIBRARIES}" CACHE STRING "ScaLAPACK libraries")
