@@ -1,8 +1,6 @@
 ####### Compilers
 include(${CMAKE_CURRENT_LIST_DIR}/_llvm.cmake)
-set(MPI_C_COMPILER mpicc)
-set(MPI_CXX_COMPILER mpicxx)
-set(MPI_CXX_SKIP_MPICXX ON)
+include(${CMAKE_CURRENT_LIST_DIR}/_mpi.cmake)
 
 ####### Compile flags
 include(${CMAKE_CURRENT_LIST_DIR}/_std_c_flags.cmake)
