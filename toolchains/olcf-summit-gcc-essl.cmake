@@ -28,7 +28,7 @@ set(BLAS_FOUND TRUE CACHE BOOL "Whether library implementing the BLAS interface 
 set(LAPACK_FOUND TRUE CACHE BOOL "Whether library implementing the LAPACK interface is found")
 
 # Set build params
-set(BUILD_SHARED_LIBS OFF)
+set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, and related libraries")
 
 # for some reason the NSF filesystem cannot handle RESTRICT checks , e.g.
 # CMake Error: Remove failed on file: /autofs/nccs-svm1_home1/.....: System Error: Device or resource busy

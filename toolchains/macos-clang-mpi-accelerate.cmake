@@ -14,7 +14,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/_boost.cmake)
 
 ####### BLAS/LAPACK Libraries
 set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries")
+set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, and related libraries")
 include(${CMAKE_CURRENT_LIST_DIR}/_accelerate.cmake)
 
 ####### Platform-specific bits
