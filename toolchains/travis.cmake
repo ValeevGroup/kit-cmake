@@ -18,7 +18,7 @@ set(LAPACK_LIBRARIES ${BLAS_LINKER_FLAGS} CACHE STRING "LAPACK linker flags")
 set(LAPACK_INCLUDE_DIRS "/usr/include" CACHE STRING "LAPACK include directories")
 set(LAPACK_COMPILE_DEFINITIONS MADNESS_LINALG_USE_LAPACKE CACHE STRING "LAPACK preprocessor definitions")
 set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries")
+set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, and related libraries")
 
 # for wavefunction91's FindLAPACK
 set( lapack_LIBRARIES ${BLAS_LINKER_FLAGS} )
