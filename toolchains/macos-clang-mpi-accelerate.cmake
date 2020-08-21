@@ -6,9 +6,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/_mpi.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_std_c_flags.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_std_cxx_flags.cmake)
 
-####### Eigen
-include(${CMAKE_CURRENT_LIST_DIR}/_eigen.cmake)
-
 ####### Boost
 include(${CMAKE_CURRENT_LIST_DIR}/_boost.cmake)
 
@@ -16,6 +13,9 @@ include(${CMAKE_CURRENT_LIST_DIR}/_boost.cmake)
 set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
 set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, and related libraries")
 include(${CMAKE_CURRENT_LIST_DIR}/_accelerate.cmake)
+
+####### Eigen
+include(${CMAKE_CURRENT_LIST_DIR}/_eigen.cmake)
 
 ####### Platform-specific bits
 set(ENABLE_MKL OFF CACHE BOOL "Whether to enable the use of Intel MKL")

@@ -18,9 +18,6 @@ include(${CMAKE_CURRENT_LIST_DIR}/_impi.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_std_c_flags.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_std_cxx_flags.cmake)
 
-####### Eigen
-include(${CMAKE_CURRENT_LIST_DIR}/_eigen.cmake)
-
 ####### Boost
 include(${CMAKE_CURRENT_LIST_DIR}/_boost.cmake)
 
@@ -29,3 +26,6 @@ set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
 set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, and related libraries")
 include(${CMAKE_CURRENT_LIST_DIR}/_tbb.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_mkl.cmake)
+
+####### Eigen
+include(${CMAKE_CURRENT_LIST_DIR}/_eigen.cmake)
