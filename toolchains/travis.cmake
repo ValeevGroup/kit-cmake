@@ -23,6 +23,6 @@ set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, a
 # for wavefunction91's FindLAPACK
 set( lapack_LIBRARIES ${BLAS_LINKER_FLAGS} )
 # BLACS
-set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-L/usr/lib/gcc/x86_64-linux-gnu/8;-lgfortran" )
+set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-L/usr/lib/gcc/x86_64-linux-gnu/8;-lgfortran;-lm" )
 # ScaLAPACK
 set( scalapack_LIBRARIES  "${blacs_LIBRARIES}" )
