@@ -85,6 +85,7 @@ endif()
 list(APPEND _mkl_libraries "-lpthread;-lm;-ldl")
 
 # LAPACK
+set(BLAS_LIBRARIES "${_mkl_libraries}" CACHE STRING "BLAS libraries")
 set(LAPACK_LIBRARIES "${_mkl_libraries}" CACHE STRING "LAPACK libraries")
 set(LAPACK_INCLUDE_DIRS ${MKL_ROOT_DIR}/include CACHE STRING "LAPACK include directories")
 set(_mkl_compile_definitions "MADNESS_LINALG_USE_LAPACKE;MKL_INT=$<IF:$<BOOL:${INTEGER4}>,int,long>")
