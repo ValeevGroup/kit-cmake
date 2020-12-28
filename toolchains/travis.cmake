@@ -14,7 +14,8 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g -Wall" CACHE STRING "Inital C++ relea
 # Libraries
 
 set(BLAS_LINKER_FLAGS "-L/usr/lib/libblas" "-lblas" "-L/usr/lib/lapack" "-llapack" "-L/usr/lib" "-llapacke" CACHE STRING "BLAS linker flags")
-set(LAPACK_LIBRARIES ${BLAS_LINKER_FLAGS} CACHE STRING "LAPACK linker flags")
+set(BLAS_LIBRARIES ${BLAS_LINKER_FLAGS} CACHE STRING "BLAS libraries")
+set(LAPACK_LIBRARIES ${BLAS_LINKER_FLAGS} CACHE STRING "LAPACK libraries")
 set(LAPACK_INCLUDE_DIRS "/usr/include" CACHE STRING "LAPACK include directories")
 set(LAPACK_COMPILE_DEFINITIONS MADNESS_LINALG_USE_LAPACKE TILEDARRAY_EIGEN_USE_LAPACKE CACHE STRING "LAPACK preprocessor definitions")
 set(INTEGER4 TRUE CACHE BOOL "Set Fortran integer size to 4 bytes")
@@ -23,6 +24,6 @@ set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, a
 # for wavefunction91's FindLAPACK
 set( lapack_LIBRARIES ${BLAS_LINKER_FLAGS} )
 # BLACS
-set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-lgfortran" )
+set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-L/usr/lib/gcc/x86_64-linux-gnu/8;-lgfortran;-lm" )
 # ScaLAPACK
 set( scalapack_LIBRARIES  "${blacs_LIBRARIES}" )
