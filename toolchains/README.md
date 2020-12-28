@@ -7,6 +7,7 @@ The following toolchains are provided:
 - `clang-mpi-mkl-tbb`: generic clang + generic MPI + Intel MKL + Intel TBB
 - `gcc-mpi-mkl-tbb`: gcc + generic MPI + Intel MKL + Intel TBB
 - `intel-parallel-studio`: Intel Parallel Studio
+- `intel-oneapi`: Intel OneAPI kit (base + HPC)
 - `macos-clang-mpi-accelerate`: MacOS Clang + generic MPI + Accelerate
 - `macos-gcc-mpi-accelerate`: MacOS Clang + generic MPI + Accelerate
 

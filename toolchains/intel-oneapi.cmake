@@ -1,21 +1,23 @@
 #
-# Generic Toolchain for Intel Parallel Studio
+# Generic Toolchain for Intel OneAPI (LLVM-based toolchain)
 #
 # REQUIREMENTS:
 # - in PATH:
-#   * icc
-#   * icpc
-#   * ifort (optional)
+#   * icx
+#   * icpx
+#   * ifx (optional)
 #   * mpiicc (optional; specify MPI_C_COMPILER explicitly to use non-Intel MPI)
 #   * mpiicpc (optional; specify MPI_CXX_COMPILER explicitly to use non-Intel MPI)
 # - environment variables:
-#   * INTEL_DIR: the Intel compiler directory (includes MKL and TBB), e.g. /opt/intel
 #   * EIGEN3_DIR or (deprecated) EIGEN_DIR: the Eigen3 directory
 #   * BOOST_DIR: the Boost root directory
 #
 
+# Intel OneAPI setvars.sh does not define INTEL_DIR, assign manually
+set(INTEL_DIR "/opt/intel/oneapi" CACHE PATH "Intel tools root directory")
+
 ####### Compilers
-include(${CMAKE_CURRENT_LIST_DIR}/_icc.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/_icx.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/_impi.cmake)
 
 ####### Compile flags
