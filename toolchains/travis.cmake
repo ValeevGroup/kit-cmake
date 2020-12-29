@@ -23,7 +23,11 @@ set(BLA_STATIC OFF CACHE BOOL "Whether to use static linkage for BLAS, LAPACK, a
 
 # for wavefunction91's FindLAPACK
 set( lapack_LIBRARIES ${BLAS_LINKER_FLAGS} )
+
 # BLACS
-set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-L/usr/lib/gcc/x86_64-linux-gnu/8;-lgfortran;-lm" )
+set( blacs_LIBRARIES      "-L$ENV{INSTALL_PREFIX}/scalapack/lib;-lscalapack;${lapack_LIBRARIES};-L/usr/lib/gcc/x86_64-linux-gnu/8;-lgfortran;-lm"  CACHE STRING "BLACS libraries")
+
 # ScaLAPACK
-set( scalapack_LIBRARIES  "${blacs_LIBRARIES}" )
+set( scalapack_LIBRARIES  "${blacs_LIBRARIES}"  CACHE STRING "ScaLAPACK libraries")
+# used by https://github.com/wavefunction91/linalg-cmake-modules
+set( ScaLAPACK_LIBRARIES  "${scalapack_LIBRARIES};MPI::MPI_C"  CACHE STRING "ScaLAPACK libraries")

@@ -130,3 +130,5 @@ else(NOT BLA_STATIC)
   set(_scalapack_lib "${_mkl_lib_dir}/libmkl_scalapack_${_mkl_fortran_int}${_mkl_static_library_suffix}")
 endif(NOT BLA_STATIC)
 set(scalapack_LIBRARIES "${_scalapack_lib};${blacs_LIBRARIES}" CACHE STRING "ScaLAPACK libraries")
+# used by https://github.com/wavefunction91/linalg-cmake-modules
+set(ScaLAPACK_LIBRARIES "${scalapack_LIBRARIES};MPI::MPI_C" CACHE STRING "ScaLAPACK libraries")
