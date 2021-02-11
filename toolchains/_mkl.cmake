@@ -51,7 +51,14 @@ elseif (EXISTS "${MKL_ROOT_DIR}/lib") # MacOS
   set(_mkl_lib_dir "${MKL_ROOT_DIR}/lib")
 endif()
 
-set(MKL_THREADING "SEQ" CACHE STRING "MKL backend: SEQ(default), TBB, or OMP")
+# is this OneAPI?
+if (EXISTS ${_mkl_lib_dir}/libmkl_sycl.a)
+  set(_mkl_oneapi 1)
+else()
+  set(_mkl_oneapi 0)
+endif()
+
+set(MKL_THREADING "SEQ" CACHE STRING "MKL backend: SEQ(default), TBB or OMP")
 if (MKL_THREADING STREQUAL "SEQ")
   set(_mkl_backend_id "sequential")
 elseif (MKL_THREADING STREQUAL "TBB")
@@ -116,12 +123,22 @@ set(LAPACK_COMPILE_DEFINITIONS "${_mkl_compile_definitions}" CACHE STRING "LAPAC
 set(lapack_LIBRARIES "${LAPACK_LIBRARIES}" CACHE STRING "LAPACK libraries")
 
 # BLACS
+# blacs library names changed in OneAPI
+if (_mkl_oneapi)
+  set(_mkl_blacs_mpi_abi intelmpi)
+else()
+  set(_mkl_blacs_mpi_abi mpich)
+endif()
 if (NOT BLA_STATIC)
-  set(_blacs_lib "-lmkl_blacs_mpich_${_mkl_fortran_int}")
+  set(_blacs_lib "-lmkl_blacs_${_mkl_blacs_mpi_abi}_${_mkl_fortran_int};${LAPACK_LIBRARIES}")
 else(NOT BLA_STATIC)
-  set(_blacs_lib "${_mkl_lib_dir}/libmkl_blacs_mpich_${_mkl_fortran_int}${_mkl_static_library_suffix}")
+  set(_blacs_lib "${_mkl_lib_dir}/libmkl_blacs_${_mkl_blacs_mpi_abi}_${_mkl_fortran_int}${_mkl_static_library_suffix};${LAPACK_LIBRARIES}")
+  if (_cmake_system_name STREQUAL Linux)
+    list(PREPEND _blacs_lib "-Wl,--start-group")
+    list(APPEND _blacs_lib "-Wl,--end-group")
+  endif(_cmake_system_name STREQUAL Linux)
 endif(NOT BLA_STATIC)
-set(blacs_LIBRARIES "${_blacs_lib};${LAPACK_LIBRARIES}" CACHE STRING "BLACS libraries")
+set(blacs_LIBRARIES "${_blacs_lib}" CACHE STRING "BLACS libraries")
 
 # ScaLAPACK
 if (NOT BLA_STATIC)
