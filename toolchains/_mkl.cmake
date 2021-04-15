@@ -1,3 +1,11 @@
+# these cache/environment variables control the behavior of this module:
+# INTEL_DIR (cache, env)
+# MKL_ROOT_DIR (cache, or env MKLROOT)
+# MKL_THREADING (cache)
+# MKL_BLACS_MPI_ABI (cache)
+# INTEGER4 (cache)
+# BLA_STATIC (cache)
+
 ############## Only usable on UNIX platforms
 if (NOT UNIX)
   message(FATAL_ERROR "_mkl.cmake is only usable on UNIX platforms")
@@ -123,12 +131,8 @@ set(LAPACK_COMPILE_DEFINITIONS "${_mkl_compile_definitions}" CACHE STRING "LAPAC
 set(lapack_LIBRARIES "${LAPACK_LIBRARIES}" CACHE STRING "LAPACK libraries")
 
 # BLACS
-# blacs library names changed in OneAPI
-if (_mkl_oneapi)
-  set(_mkl_blacs_mpi_abi intelmpi)
-else()
-  set(_mkl_blacs_mpi_abi mpich)
-endif()
+set(MKL_BLACS_MPI_ABI "intelmpi" CACHE STRING "MKL BLACS assumes this MPI ABI: intelmpi(default), sgimpt or openmpi")
+set(_mkl_blacs_mpi_abi "${MKL_BLACS_MPI_ABI}")
 if (NOT BLA_STATIC)
   set(_blacs_lib "-lmkl_blacs_${_mkl_blacs_mpi_abi}_${_mkl_fortran_int};${LAPACK_LIBRARIES}")
 else(NOT BLA_STATIC)
