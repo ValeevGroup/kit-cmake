@@ -1,3 +1,6 @@
+# these cache/environment variables control the behavior of this module:
+# GCC_VERSION (env) : if defined, will look for gcc-$ENV{CLANG_VERSION} instead of gcc ; ditto for g++ and gfortran
+
 ############## Only usable on UNIX platforms
 if (NOT UNIX)
   message(FATAL_ERROR "_gnu.cmake is only usable on UNIX platforms")

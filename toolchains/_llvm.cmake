@@ -1,3 +1,6 @@
+# these cache/environment variables control the behavior of this module:
+# CLANG_VERSION (env) : if defined, will look for clang-$ENV{CLANG_VERSION} instead of clang; ditto for clang++
+
 ############## Only usable on UNIX platforms
 if (NOT UNIX)
   message(FATAL_ERROR "_llvm.cmake is only usable on UNIX platforms")
@@ -17,10 +20,18 @@ if (APPLE)
 endif(APPLE)
 # if no special definition found, assume it's in PATH
 if (NOT DEFINED _cmake_c_compiler)
-  set(_cmake_c_compiler clang)
+  if (DEFINED ENV{CLANG_VERSION})
+    set(_cmake_c_compiler clang-$ENV{CLANG_VERSION})
+  else()
+    set(_cmake_c_compiler clang)
+  endif()
 endif(NOT DEFINED _cmake_c_compiler)
 if (NOT DEFINED _cmake_cxx_compiler)
-  set(_cmake_cxx_compiler clang++)
+  if (DEFINED ENV{CLANG_VERSION})
+    set(_cmake_cxx_compiler clang++-$ENV{CLANG_VERSION})
+  else()
+    set(_cmake_cxx_compiler clang++)
+  endif()
 endif(NOT DEFINED _cmake_cxx_compiler)
 
 set(CMAKE_C_COMPILER "${_cmake_c_compiler}" CACHE STRING "C compiler")
