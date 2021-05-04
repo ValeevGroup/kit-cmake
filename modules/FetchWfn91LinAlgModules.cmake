@@ -14,11 +14,11 @@ include(FetchContent)
 FetchContent_Declare(
         wavefunction91_linalg_kit
         QUIET
-        GIT_REPOSITORY      https://github.com/wavefunction91/linalg-cmake-modules.git
-        GIT_TAG    81fa1754dc592a0b6bde98abd650a8270d74fa1b
+        GIT_REPOSITORY  https://github.com/ajaypanyala/linalg-cmake-modules.git 
+        GIT_TAG         f6629057033a9dd31416b259f83233340106fa78 
 )
 FetchContent_GetProperties(wavefunction91_linalg_kit)
 if(NOT wavefunction91_linalg_kit_POPULATED)
-    FetchContent_MakeAvailable(wavefunction91_linalg_kit)
+    FetchContent_Populate(wavefunction91_linalg_kit)
     list(APPEND CMAKE_MODULE_PATH "${wavefunction91_linalg_kit_SOURCE_DIR}")
 endif(NOT wavefunction91_linalg_kit_POPULATED)
