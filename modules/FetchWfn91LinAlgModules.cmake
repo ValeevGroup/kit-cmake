@@ -15,7 +15,7 @@ FetchContent_Declare(
         linalg-cmake-modules
         QUIET
         GIT_REPOSITORY  https://github.com/ajaypanyala/linalg-cmake-modules.git 
-        GIT_TAG         f6629057033a9dd31416b259f83233340106fa78 
+        GIT_TAG         2c542c1c12a6542eb7b9c8708806b7c29627e278
 )
 FetchContent_GetProperties(linalg-cmake-modules)
 if(NOT linalg-cmake-modules_POPULATED)
