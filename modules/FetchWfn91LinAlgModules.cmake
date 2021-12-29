@@ -14,8 +14,8 @@ include(FetchContent)
 FetchContent_Declare(
         linalg-cmake-modules
         QUIET
-        GIT_REPOSITORY  https://github.com/ajaypanyala/linalg-cmake-modules.git 
-        GIT_TAG         2c542c1c12a6542eb7b9c8708806b7c29627e278
+        GIT_REPOSITORY  https://github.com/ValeevGroup/linalg-cmake-modules.git
+        GIT_TAG         1d1996464b3a1a6f6cc5a3cc9c9086cba5f50595
 )
 FetchContent_GetProperties(linalg-cmake-modules)
 if(NOT linalg-cmake-modules_POPULATED)
