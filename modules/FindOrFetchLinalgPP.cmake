@@ -8,9 +8,10 @@ if (NOT TARGET blaspp)
     else (TARGET blaspp)
         cmake_minimum_required(VERSION 3.14.0)  # for FetchContent_MakeAvailable
         include(FetchContent)
+        include(${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake)
         FetchContent_Declare(blaspp
                 GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git
-                GIT_TAG 0c63c240f445f6f6b9b5d4f24ed0869271aef4d4
+                GIT_TAG ${VGCMAKEKIT_TRACKED_BLASPP_TAG}
                 )
 
         FetchContent_MakeAvailable(blaspp)
@@ -28,9 +29,10 @@ if (NOT TARGET lapackpp)
     else (TARGET lapackpp)
         cmake_minimum_required(VERSION 3.14.0)  # for FetchContent_MakeAvailable
         include(FetchContent)
+        include(${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake)
         FetchContent_Declare(lapackpp
                 GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git
-                GIT_TAG 13301a133f146f9d9b1a2f466bc19fe092c149e1
+                GIT_TAG ${VGCMAKEKIT_TRACKED_LAPACKPP_TAG}
                 )
 
         FetchContent_MakeAvailable(lapackpp)
