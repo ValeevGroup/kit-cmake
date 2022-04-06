@@ -15,7 +15,7 @@ FetchContent_Declare(
         linalg-cmake-modules
         QUIET
         GIT_REPOSITORY  https://github.com/ValeevGroup/linalg-cmake-modules.git
-        GIT_TAG         847d9eda66bbcfc3cc55064aeeadd119cede34ab
+        GIT_TAG         2c0fe0ca36c0f371a8eaefb395c5e0e6ead3412a
 )
 FetchContent_GetProperties(linalg-cmake-modules)
 if(NOT linalg-cmake-modules_POPULATED)
