@@ -23,6 +23,14 @@ else()
   )
   FetchContent_MakeAvailable( scalapackpp )
 
+  # use subproject targets as if they were in exported namespace ...
+  if (TARGET blacspp AND NOT TARGET blacspp::blacspp)
+    add_library(blacspp::blacspp ALIAS blacspp)
+  endif(TARGET blacspp AND NOT TARGET blacspp::blacspp)
+  if (TARGET scalapackpp AND NOT TARGET scalapackpp::scalapackpp)
+    add_library(scalapackpp::scalapackpp ALIAS scalapackpp)
+  endif(TARGET scalapackpp AND NOT TARGET scalapackpp::scalapackpp)
+
   # propagate MPI_CXX_SKIP_MPICXX=ON
   if (DEFINED MPI_CXX_COMPILE_DEFINITIONS)
     target_compile_definitions( blacspp     PRIVATE ${MPI_CXX_COMPILE_DEFINITIONS} )
