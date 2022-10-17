@@ -16,9 +16,13 @@ macro(vgkit_cmake_git_revision)
         execute_process(
           COMMAND ${GIT_EXECUTABLE} rev-parse -q HEAD
           WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-          OUTPUT_VARIABLE ${vgkit_cmake_git_revision_result})
-        string(REGEX MATCH "[0-9a-f]*"
-          ${vgkit_cmake_git_revision_result} "${${vgkit_cmake_git_revision_result}}")
+          RESULT_VARIABLE vgkit_cmake_git_revision_errcod
+          OUTPUT_VARIABLE ${vgkit_cmake_git_revision_result}
+          ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT vgkit_cmake_git_revision_errcod EQUAL 0)
+          set(${vgkit_cmake_git_revision_result} "unknown")
+        endif()
+        unset(vgkit_cmake_git_revision_errcod)
       else()
         set(${vgkit_cmake_git_revision_result} "unknown")
       endif()
@@ -37,9 +41,9 @@ endmacro()
 #   ${PROJECT_NAME_UPPER}_GIT_DESCRIPTION
 #
 macro(vgkit_cmake_git_description)
-  string(TOUPPER "${PROJECT_NAME}_GIT_DESCRIPTION" vgkit_cmake_git_revision_result)
-  if (DEFINED ${vgkit_cmake_git_revision_result})
-    message(WARNING "vgkit_cmake_git_description() called for project ${PROJECT_NAME} but the result variable ${vgkit_cmake_git_revision_result} already defined; will not change its value")
+  string(TOUPPER "${PROJECT_NAME}_GIT_DESCRIPTION" vgkit_cmake_git_description_result)
+  if (DEFINED ${vgkit_cmake_git_description_result})
+    message(WARNING "vgkit_cmake_git_description() called for project ${PROJECT_NAME} but the result variable ${vgkit_cmake_git_description_result} already defined; will not change its value")
   else()
     if(EXISTS ${PROJECT_SOURCE_DIR}/.git)
       find_package(Git REQUIRED)
@@ -47,13 +51,27 @@ macro(vgkit_cmake_git_description)
         execute_process(
                 COMMAND ${GIT_EXECUTABLE} describe --dirty
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-                OUTPUT_VARIABLE ${vgkit_cmake_git_revision_result})
+                RESULT_VARIABLE vgkit_cmake_git_description_errcod
+                OUTPUT_VARIABLE ${vgkit_cmake_git_description_result}
+                ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT vgkit_cmake_git_description_errcod EQUAL 0)
+          set(${vgkit_cmake_git_description_errcod} "unknown")
+        endif()
+        unset(vgkit_cmake_git_description_errcod)
       else()
-        set(${vgkit_cmake_git_revision_result} "unknown")
+        set(${vgkit_cmake_git_description_errcod} "unknown")
       endif()
     else()
-      set(${vgkit_cmake_git_revision_result} "unknown")
+      set(${vgkit_cmake_git_description_errcod} "unknown")
     endif()
   endif()
-  unset(vgkit_cmake_git_revision_result)
+  unset(vgkit_cmake_git_description_errcod)
+endmacro()
+
+#
+# vgkit_cmake_git_metadata() invokes vgkit_cmake_git_revision and vgkit_cmake_git_description
+#
+macro(vgkit_cmake_git_metadata)
+  vgkit_cmake_git_revision()
+  vgkit_cmake_git_description()
 endmacro()
