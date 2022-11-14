@@ -1,4 +1,10 @@
 #
+# SPDX-FileCopyrightText: 2022 Eduard Valeyev <eduard@valeyev.net>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+#
 # vgkit_cmake_git_revision() defines variable ${PROJECT_NAME_UPPER}_GIT_REVISION,
 #   where ${PROJECT_NAME_UPPER} is the upper-case version of ${PROJECT_NAME}, to
 #   the "long-form" GIT revision produced by `git rev-parse -q HEAD` command.
