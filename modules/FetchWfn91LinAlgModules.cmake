@@ -1,4 +1,4 @@
-# - fetches github.com/ajaypanyala/linalg-cmake-modules
+# - fetches github.com/wavefunction91/linalg-cmake-modules
 
 # prerequisites:
 # 1. cmake with FetchContent
