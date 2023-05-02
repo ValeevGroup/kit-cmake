@@ -1,4 +1,4 @@
-# - fetches github.com/ajaypanyala/linalg-cmake-modules
+# - fetches github.com/wavefunction91/linalg-cmake-modules
 
 # prerequisites:
 # 1. cmake with FetchContent
@@ -14,7 +14,7 @@ include(FetchContent)
 FetchContent_Declare(
         linalg-cmake-modules
         QUIET
-        GIT_REPOSITORY  https://github.com/ajaypanyala/linalg-cmake-modules.git
+        GIT_REPOSITORY  https://github.com/wavefunction91/linalg-cmake-modules.git
         GIT_TAG         0bc70fba80f798f3093771f450e906eb31f3b056
 )
 FetchContent_GetProperties(linalg-cmake-modules)
