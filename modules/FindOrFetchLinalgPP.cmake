@@ -10,7 +10,7 @@ if (NOT TARGET blaspp)
         include(FetchContent)
         include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
         FetchContent_Declare(blaspp
-                GIT_REPOSITORY https://bitbucket.org/icl/blaspp.git
+                GIT_REPOSITORY https://github.com/icl-utk-edu/blaspp.git
                 GIT_TAG ${VGCMAKEKIT_TRACKED_BLASPP_TAG}
                 )
 
@@ -31,7 +31,7 @@ if (NOT TARGET lapackpp)
         include(FetchContent)
         include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
         FetchContent_Declare(lapackpp
-                GIT_REPOSITORY https://bitbucket.org/icl/lapackpp.git
+                GIT_REPOSITORY https://github.com/icl-utk-edu/lapackpp.git
                 GIT_TAG ${VGCMAKEKIT_TRACKED_LAPACKPP_TAG}
                 )
 
