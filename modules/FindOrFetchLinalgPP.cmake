@@ -1,4 +1,6 @@
 # BLAS++ / LAPACK++
+set(OLD_BUILD_TESTING "${BUILD_TESTING}") # Save testing state
+set(BUILD_TESTING OFF CACHE BOOL "Enable Testing" FORCE) # Disable LinAlgPP Testing
 
 if (NOT TARGET blaspp)
     find_package(blaspp QUIET CONFIG)
@@ -90,3 +92,5 @@ if (NOT TARGET blaspp_headers)
             )
 
 endif (NOT TARGET blaspp_headers)
+
+set(BUILD_TESTING "${OLD_BUILD_TESTING}" CACHE BOOL "Enable Testing" FORCE) # Potentially re-enable testing based on saved state
