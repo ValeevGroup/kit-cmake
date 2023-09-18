@@ -1,4 +1,5 @@
 # BLAS++ / LAPACK++
+include(CTest) # defines BUILD_TESTING option
 set(OLD_BUILD_TESTING "${BUILD_TESTING}") # Save testing state
 set(BUILD_TESTING OFF CACHE BOOL "Enable Testing" FORCE) # Disable LinAlgPP Testing
 
