@@ -13,7 +13,8 @@ if (NOT TARGET blaspp)
         include(FetchContent)
         include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
         FetchContent_Declare(blaspp
-                GIT_REPOSITORY https://github.com/icl-utk-edu/blaspp.git
+                #GIT_REPOSITORY https://github.com/icl-utk-edu/blaspp.git
+                GIT_REPOSITORY https://github.com/wavefunction91/blaspp.git
                 GIT_TAG ${VGCMAKEKIT_TRACKED_BLASPP_TAG}
                 )
 
