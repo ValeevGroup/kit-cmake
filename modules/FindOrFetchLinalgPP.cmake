@@ -86,11 +86,19 @@ if (NOT TARGET blaspp_headers)
 
     endif (BLAS_IS_MKL)
 
+    # mirror blaspp: see https://github.com/icl-utk-edu/blaspp/blob/1507102eb77070bf6f786ad54c4453402eb2fa42/CMakeLists.txt#L512
+    include(GNUInstallDirs)
+    if (WIN32)
+        set( blaspp_install_configdir "blaspp" )
+    else()
+        set( blaspp_install_configdir "${CMAKE_INSTALL_LIBDIR}/cmake/blaspp" )
+    endif()
+
     install(TARGETS blaspp_headers EXPORT blaspp_headers)
     export(EXPORT blaspp_headers FILE "${PROJECT_BINARY_DIR}/blaspp_headers-targets.cmake")
     install(EXPORT blaspp_headers
             FILE "blaspp_headers-targets.cmake"
-            DESTINATION "lib/blaspp" # current install location of blaspp
+            DESTINATION "${blaspp_install_configdir}"
             )
 
 endif (NOT TARGET blaspp_headers)
