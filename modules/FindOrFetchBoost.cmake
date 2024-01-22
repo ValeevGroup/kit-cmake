@@ -89,7 +89,35 @@ foreach(tgt headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COM
     endif()
 endforeach()
 
-if (NOT TARGET Boost::headers AND Boost_FETCH_IF_MISSING)
+# detect which components are missing
+set(__missing_nonmodular_boost_components )  # there should not be any if find_package succeeded, i.e. Boost_FOUND is true
+foreach(tgt IN LISTS Boost_REQUIRED_COMPONENTS_NONMODULAR)
+    if (NOT TARGET Boost::${tgt})
+        list(APPEND __missing_nonmodular_boost_components ${tgt})
+    endif()
+endforeach()
+set(__missing_modular_boost_components )
+foreach(tgt IN LISTS Boost_REQUIRED_COMPONENTS)
+    if (NOT TARGET Boost::${tgt})
+        list(APPEND __missing_modular_boost_components ${tgt})
+    endif()
+endforeach()
+
+# if Boost was loaded via find_package check if have all REQUIRED components
+if (Boost_FOUND)
+    if (__missing_nonmodular_boost_components)
+        message(FATAL_ERROR "Boost was discovered successfully via find_package(Boost) but components \"${__missing_nonmodular_boost_components}\" required by ${PROJECT_NAME} were not found")
+    endif()
+endif()
+
+if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MISSING)
+  message(WARNING "__missing_modular_boost_components=${__missing_modular_boost_components}")
+
+  # Boost can only be build once in a source tree
+  if (Boost_POPULATED)
+      message(FATAL_ERROR "Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but someone already build Boost via FetchContent with components \"${__missing_modular_boost_components}\" required by this project missing; add these components to the original FetchContent stanza")
+  endif()
+
   include (FetchContent)
   cmake_minimum_required (VERSION 3.14.0)  # for FetchContent_MakeAvailable
 
@@ -271,7 +299,7 @@ if (NOT TARGET Boost::headers AND Boost_FETCH_IF_MISSING)
   set(Boost_BUILT_FROM_SOURCE ON)
   set(Boost_IS_MODULARIZED ON)
 
-endif(NOT TARGET Boost::headers AND Boost_FETCH_IF_MISSING)
+endif(NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MISSING)
 
 # extract components that were found
 foreach(tgt headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
