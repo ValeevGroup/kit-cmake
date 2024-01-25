@@ -31,12 +31,18 @@
 # BOOST_INCLUDEDIR: preferred include directory e.g. <prefix>/include. (see https://cmake.org/cmake/help/latest/module/FindBoost.html)
 
 # output variables:
-# Boost_BUILT_FROM_SOURCE: if Boost was built from source
+# Boost_BUILT_FROM_SOURCE: ON if Boost was built from source
 # Boost_USE_CONFIG: if Boost_BUILT_FROM_SOURCE is ON, this indicates whether found Boost via config mode
 # Boost_CONFIG: if Boost_BUILT_FROM_SOURCE and Boost_USE_CONFIG are ON, this specifies the config file used
 # Boost_IS_MODULARIZED: if Boost targets are modularized (i.e. not the old cmake harness)
 # Boost_FOUND_COMPONENTS: list of modular components that were found
+# Boost_FOUND_TARGETS: list of modular targets (X in Boost::X or boost_X) that were found
 # Boost_FOUND_COMPONENTS_NONMODULAR: list of non-modular components that were found
+# Boost_FOUND_TARGETS_NONMODULAR: list of non-modular targets (X in Boost::X) that were found
+# Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL: CACHE variable containing the list of modular targets that
+#   are not built automatically when the "install" target is built; if Boost_BUILT_FROM_SOURCE is ON,
+#   for each target X in this list user will want to add an artificial dependence of their target(s)
+#   on target boost_X
 
 # list of all non-modular components
 set(Boost_ALL_COMPONENTS_NONMODULAR
@@ -140,6 +146,8 @@ set(Boost_ALL_COMPONENTS
         variant
         variant2
         winapi)
+
+set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
 
 # converts modular component _comp to list of targets defined by the component
 # target name x means TARGET Boost::x is defined
@@ -361,24 +369,32 @@ if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MI
 endif(NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MISSING)
 
 # extract components that were found
+set(Boost_FOUND_COMPONENTS_NONMODULAR )
+set(Boost_FOUND_COMPONENTS )
+set(Boost_FOUND_TARGETS_NONMODULAR )
+set(Boost_FOUND_TARGETS )
 foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
     component_to_targets(__comp __targets)
     foreach(tgt IN LISTS __targets)
         if (TARGET Boost::${tgt})
             list(APPEND Boost_FOUND_COMPONENTS_NONMODULAR ${__comp})
+            list(APPEND Boost_FOUND_TARGETS_NONMODULAR ${tgt})
         endif()
     endforeach()
 endforeach()
 list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS_NONMODULAR)
+list(REMOVE_DUPLICATES Boost_FOUND_TARGETS_NONMODULAR)
 foreach(__comp headers ${Boost_REQUIRED_COMPONENTS} ${Boost_OPTIONAL_COMPONENTS})
     component_to_targets(__comp __targets)
     foreach(tgt IN LISTS __targets)
         if (TARGET Boost::${tgt})
             list(APPEND Boost_FOUND_COMPONENTS ${__comp})
+            list(APPEND Boost_FOUND_TARGETS ${tgt})
         endif()
     endforeach()
 endforeach()
 list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS)
+list(REMOVE_DUPLICATES Boost_FOUND_TARGETS)
 
 # Boost::boost is an alias for Boost::headers defined by boost-config.cmake
 if (Boost_IS_MODULARIZED AND NOT TARGET Boost::boost AND TARGET boost_headers)
