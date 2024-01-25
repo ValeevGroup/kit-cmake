@@ -1,5 +1,26 @@
 # -*- mode: cmake -*-
 
+# definitions:
+# - "library": e.g. Boost.PropertyTree, corresponds to the contents of subdirectory contained in libs/
+# - "component": Boost package components given via
+#   - COMPONENTS and OPTIONAL_COMPONENTS) to the find_package command used to import Boost in CMake, or
+#   - Boost_INCLUDE_LIBRARIES variable passed to the Boost CMake harness used by the FetchContent command to build Boost
+#     from source
+# - "target": an IMPORTED CMake target defined by Boost, e.g. Boost::headers
+
+# facts:
+# - every library X (Boost.X) is usually also a component X, but
+#   - some correspond to multiple components or versioned components (e.g. Boost.Python is a library that corresponds to components pythonXY and numpyXY,
+#     where XY is the Python version), and some correspond to no components or a part of a component (e.g. ccomponent
+#     "headers"  contains all header-only libraries
+#   - basically, original Boost CMake toolkit (i.e., the FindBoost CMake module) had 1 component (boost)
+#     for all header-onlu libraries and one component for each non-header-only library
+#   - modular Boost CMake harness has at least component per library (header-only or otherwise),
+#     but sometimes more than 1
+# - every component X usually correspond to IMPORTED target Boost::X ; exceptions include:
+#   - Boost::boost is not a component; Boost::headers is an alias for Boost::boost
+#   - targets Boost::numeric_{conversion,interval,odeint,ublas} are defined by component numeric
+
 # input variables:
 # Boost_REQUIRED_COMPONENTS: list of required components; these are components defined by the modular Boost (not by the old cmake harness)
 # Boost_OPTIONAL_COMPONENTS: list of optional components; these are components defined by the modular Boost (not by the old cmake harness)
@@ -13,9 +34,11 @@
 # Boost_BUILT_FROM_SOURCE: if Boost was built from source
 # Boost_USE_CONFIG: if Boost_BUILT_FROM_SOURCE is ON, this indicates whether found Boost via config mode
 # Boost_CONFIG: if Boost_BUILT_FROM_SOURCE and Boost_USE_CONFIG are ON, this specifies the config file used
-# Boost_FOUND_COMPONENTS: list of components that were found
 # Boost_IS_MODULARIZED: if Boost targets are modularized (i.e. not the old cmake harness)
+# Boost_FOUND_COMPONENTS: list of modular components that were found
+# Boost_FOUND_COMPONENTS_NONMODULAR: list of non-modular components that were found
 
+# list of all non-modular components
 set(Boost_ALL_COMPONENTS_NONMODULAR
         headers
         # see https://www.boost.org/doc/libs/master/more/getting_started/unix-variants.html#header-only-libraries
@@ -38,6 +61,96 @@ set(Boost_ALL_COMPONENTS_NONMODULAR
         wave
    )
 
+# list of all modular components
+set(Boost_ALL_COMPONENTS
+        algorithm
+        align
+        any
+        atomic
+        array
+        assert
+        bind
+        chrono
+        circular_buffer
+        compute
+        concept_check
+        config
+        container
+        container_hash
+        conversion
+        core
+        date_time
+        describe
+        detail
+        dynamic_bitset
+        endian
+        exception
+        filesystem
+        function
+        functional
+        function_types
+        fusion
+        headers
+        integer
+        intrusive
+        iterator
+        io
+        iterator
+        lexical_cast
+        logic
+        math
+        move
+        mp11
+        mpl
+        multiprecision
+        multi_index
+        numeric_conversion
+        numeric_interval
+        #numeric_odeint
+        numeric_ublas
+        optional
+        parameter
+        phoenix
+        pool
+        predef
+        preprocessor
+        property_tree
+        proto
+        random
+        range
+        ratio
+        regex
+        serialization
+        smart_ptr
+        spirit
+        static_assert
+        system
+        test
+        thread
+        throw_exception
+        tokenizer
+        tti
+        tuple
+        typeof
+        type_index
+        type_traits
+        unordered
+        utility
+        uuid
+        variant
+        variant2
+        winapi)
+
+# converts modular component _comp to list of targets defined by the component
+# target name x means TARGET Boost::x is defined
+macro(component_to_targets _comp _targets)
+    if (${${_comp}} STREQUAL test)
+        set(${_targets} unit_test_framework)
+    else()
+        set(${_targets} ${${_comp}})
+    endif()
+endmacro()
+
 macro(intersection _out _in1 _in2)
     set(${_out})
     foreach(x IN LISTS ${_in1})
@@ -56,20 +169,26 @@ intersection(Boost_REQUIRED_COMPONENTS_NONMODULAR Boost_REQUIRED_COMPONENTS Boos
 intersection(Boost_OPTIONAL_COMPONENTS_NONMODULAR Boost_OPTIONAL_COMPONENTS Boost_ALL_COMPONENTS_NONMODULAR)
 
 # detect which Boost targets I already have
-foreach(tgt headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    if (TARGET Boost::${tgt})
-        set(vgck_imported_boost_${tgt} 0)
-    else()
-        set(vgck_imported_boost_${tgt} 1)
-    endif()
+foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (TARGET Boost::${tgt})
+            set(vgck_imported_boost_${tgt} 0)
+        else()
+            set(vgck_imported_boost_${tgt} 1)
+        endif()
+    endforeach()
 endforeach()
 
 # try config first
 # OPTIONAL_COMPONENTS in FindBoost available since 3.11
 cmake_minimum_required(VERSION 3.11.0)
-find_package(Boost ${Boost_OLDEST_BOOST_VERSION} CONFIG COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-if (NOT TARGET Boost::headers)
-    find_package(Boost ${Boost_OLDEST_BOOST_VERSION} COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+# if Boost was loaded via config file or have not found Boost yet
+if (DEFINED Boost_CONFIG OR NOT TARGET Boost::headers)
+  find_package(Boost ${Boost_OLDEST_BOOST_VERSION} QUIET CONFIG COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+endif()
+if (NOT DEFINED Boost_CONFIG AND NOT TARGET Boost::headers)
+    find_package(Boost ${Boost_OLDEST_BOOST_VERSION} QUIET COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
     if (TARGET Boost::headers)
         set(Boost_USE_CONFIG FALSE)
     endif(TARGET Boost::headers)
@@ -79,28 +198,37 @@ endif()
 
 # Boost::* targets by default are not GLOBAL, so to allow users of LINALG_LIBRARIES to safely use them we need to make them global
 # more discussion here: https://gitlab.kitware.com/cmake/cmake/-/issues/17256
-foreach(tgt headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    if (TARGET Boost::${tgt} AND vgck_imported_boost_${tgt})
-        get_target_property(_boost_tgt_${tgt}_is_imported_global Boost::${tgt} IMPORTED_GLOBAL)
-        if (NOT _boost_tgt_${tgt}_is_imported_global)
-            set_target_properties(Boost::${tgt} PROPERTIES IMPORTED_GLOBAL TRUE)
+foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (TARGET Boost::${tgt} AND vgck_imported_boost_${tgt})
+            get_target_property(_boost_tgt_${tgt}_is_imported_global Boost::${tgt} IMPORTED_GLOBAL)
+            if (NOT _boost_tgt_${tgt}_is_imported_global)
+                set_target_properties(Boost::${tgt} PROPERTIES IMPORTED_GLOBAL TRUE)
+            endif()
+            unset(_boost_tgt_${tgt}_is_imported_global)
         endif()
-        unset(_boost_tgt_${tgt}_is_imported_global)
-    endif()
+    endforeach()
 endforeach()
 
 # detect which components are missing
 set(__missing_nonmodular_boost_components )  # there should not be any if find_package succeeded, i.e. Boost_FOUND is true
-foreach(tgt IN LISTS Boost_REQUIRED_COMPONENTS_NONMODULAR)
-    if (NOT TARGET Boost::${tgt})
-        list(APPEND __missing_nonmodular_boost_components ${tgt})
-    endif()
+foreach(__comp IN LISTS Boost_REQUIRED_COMPONENTS_NONMODULAR)
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (NOT TARGET Boost::${tgt})
+            list(APPEND __missing_nonmodular_boost_components ${__comp})
+        endif()
+    endforeach()
 endforeach()
 set(__missing_modular_boost_components )
-foreach(tgt IN LISTS Boost_REQUIRED_COMPONENTS)
-    if (NOT TARGET Boost::${tgt})
-        list(APPEND __missing_modular_boost_components ${tgt})
-    endif()
+foreach(__comp IN LISTS Boost_REQUIRED_COMPONENTS)
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (NOT TARGET Boost::${tgt})
+            list(APPEND __missing_modular_boost_components ${__comp})
+        endif()
+    endforeach()
 endforeach()
 
 # if Boost was loaded via find_package check if have all REQUIRED components
@@ -111,11 +239,10 @@ if (Boost_FOUND)
 endif()
 
 if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MISSING)
-  message(WARNING "__missing_modular_boost_components=${__missing_modular_boost_components}")
 
   # Boost can only be build once in a source tree
   if (Boost_POPULATED)
-      message(FATAL_ERROR "Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but someone already build Boost via FetchContent with components \"${__missing_modular_boost_components}\" required by this project missing; add these components to the original FetchContent stanza")
+      message(FATAL_ERROR "Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but someone already build Boost via FetchContent with components \"${__missing_modular_boost_components}\" required by this project are missing; add these components to the original FetchContent stanza")
   endif()
 
   include (FetchContent)
@@ -171,84 +298,7 @@ if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MI
   endif()
 
   # TODO figure out how to deduce the list of dependent components
-  # for now just use all of them
-  set(Boost_ALL_COMPONENTS
-      algorithm
-      align
-      any
-      atomic
-      array
-      assert
-      bind
-      chrono
-      circular_buffer
-      compute
-      concept_check
-      config
-      container
-      container_hash
-      conversion
-      core
-      date_time
-      describe
-      detail
-      dynamic_bitset
-      endian
-      exception
-      filesystem
-      function
-      functional
-      function_types
-      fusion
-      headers
-      integer
-      intrusive
-      iterator
-      io
-      iterator
-      lexical_cast
-      logic
-      math
-      move
-      mp11
-      mpl
-      multiprecision
-      multi_index
-      numeric_conversion
-      numeric_interval
-      #numeric_odeint
-      numeric_ublas
-      optional
-      parameter
-      phoenix
-      pool
-      predef
-      preprocessor
-      property_tree
-      proto
-      random
-      range
-      ratio
-      regex
-      serialization
-      smart_ptr
-      spirit
-      static_assert
-      system
-      thread
-      throw_exception
-      tokenizer
-      tti
-      tuple
-      typeof
-      type_index
-      type_traits
-      unordered
-      utility
-      uuid
-      variant
-      variant2
-      winapi)
+  # for now just use all of them, i.e. Boost_ALL_COMPONENTS
   set(BOOST_INCLUDE_LIBRARIES ${BOOST_INCLUDE_LIBRARIES_CURRENT})
   set(BOOST_INCLUDE_LIBRARIES_FULL "headers;${BOOST_INCLUDE_LIBRARIES};${Boost_ALL_COMPONENTS}")
   list(REMOVE_DUPLICATES BOOST_INCLUDE_LIBRARIES_FULL)
@@ -280,13 +330,22 @@ if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MI
           set(__HEADER_DIRECTORY ${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/numeric/ublas/include)
       endif()
 
-      boost_install(TARGETS "boost_${lib}" VERSION "${BOOST_SUPERPROJECT_VERSION}" HEADER_DIRECTORY "${__HEADER_DIRECTORY}")
+      # convert the list of components to a list of targets
+      component_to_targets(lib __lib_targets)
+      # convert target T to boost_T
+      set(__lib_targets_w_boost_prepended )
+      foreach(__target IN LISTS __lib_targets)
+          list(APPEND __lib_targets_w_boost_prepended boost_${__target})
+      endforeach()
+
+      boost_install(TARGETS "${__lib_targets_w_boost_prepended}" VERSION "${BOOST_SUPERPROJECT_VERSION}" HEADER_DIRECTORY "${__HEADER_DIRECTORY}")
 
       # Create the targets file in build tree also
-      export(EXPORT boost_${lib}-targets
-              NAMESPACE Boost::
-              FILE "${PROJECT_BINARY_DIR}/boost_${lib}-targets.cmake")
-
+      foreach(__target IN LISTS __lib_targets_w_boost_prepended)
+          export(EXPORT ${__target}-targets
+                 NAMESPACE Boost::
+                 FILE "${PROJECT_BINARY_DIR}/${__target}-targets.cmake")
+      endforeach()
   endforeach()
 
   if (DEFINED ACTUAL_PROJECT_VERSION)
@@ -302,16 +361,22 @@ if (NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MI
 endif(NOT Boost_FOUND AND __missing_modular_boost_components AND Boost_FETCH_IF_MISSING)
 
 # extract components that were found
-foreach(tgt headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    if (TARGET Boost::${tgt})
-        list(APPEND Boost_FOUND_COMPONENTS_NONMODULAR ${tgt})
-    endif()
+foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (TARGET Boost::${tgt})
+            list(APPEND Boost_FOUND_COMPONENTS_NONMODULAR ${__comp})
+        endif()
+    endforeach()
 endforeach()
 list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS_NONMODULAR)
-foreach(tgt headers ${Boost_REQUIRED_COMPONENTS} ${Boost_OPTIONAL_COMPONENTS})
-    if (TARGET Boost::${tgt})
-        list(APPEND Boost_FOUND_COMPONENTS ${tgt})
-    endif()
+foreach(__comp headers ${Boost_REQUIRED_COMPONENTS} ${Boost_OPTIONAL_COMPONENTS})
+    component_to_targets(__comp __targets)
+    foreach(tgt IN LISTS __targets)
+        if (TARGET Boost::${tgt})
+            list(APPEND Boost_FOUND_COMPONENTS ${__comp})
+        endif()
+    endforeach()
 endforeach()
 list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS)
 
@@ -322,16 +387,32 @@ endif()
 
 set(Boost_CONFIG_FILE_CONTENTS
 "
+# converts modular component _comp to list of targets defined by the component
+# target name x means TARGET Boost::x is defined
+macro(component_to_targets _comp _targets)
+    if (${${_comp}} STREQUAL test)
+        set(${_targets} unit_test_framework)
+    else()
+        set(${_targets} ${${_comp}})
+    endif()
+endmacro()
+
+#########################################
 # import boost components, if any missing
+#########################################
 set(Boost_IS_MODULARIZED ${Boost_IS_MODULARIZED})
 if (Boost_IS_MODULARIZED)
   set(Boost_FOUND_COMPONENTS ${Boost_FOUND_COMPONENTS})
 else(Boost_IS_MODULARIZED)
   set(Boost_FOUND_COMPONENTS ${Boost_FOUND_COMPONENTS_NONMODULAR})
 endif(Boost_IS_MODULARIZED)
+
 set(Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK \"NOT;TARGET;Boost::headers\")
-foreach(_deplib \${Boost_FOUND_COMPONENTS})
-  list(APPEND Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK \"OR;NOT;TARGET;Boost::\${_deplib}\")
+foreach(_comp \${Boost_FOUND_COMPONENTS})
+  component_to_targets(_comp _targets)
+  foreach(_tgt IN LISTS _targets)
+    list(APPEND Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK \"OR;NOT;TARGET;Boost::\${_tgt}\")
+  endforeach()
 endforeach(_deplib)
 
 if(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
@@ -364,11 +445,14 @@ if(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
     endif (Boost_USE_CONFIG)
   else(NOT Boost_BUILT_FROM_SOURCE)
     set(Boost_FOUND_COMPONENTS ${Boost_FOUND_COMPONENTS})
-    foreach(component IN LISTS Boost_FOUND_COMPONENTS)
-      if (NOT TARGET Boost::\${component})
-        find_dependency(boost_\${component} QUIET CONFIG REQUIRED)
-      endif()
-    endforeach(component)
+    foreach(_comp IN LISTS Boost_FOUND_COMPONENTS)
+      component_to_targets(_comp _targets)
+      foreach(_tgt IN LISTS _targets)
+        if (NOT TARGET Boost::\${_tgt})
+          find_dependency(boost_\${_tgt} QUIET CONFIG REQUIRED)
+        endif()
+      endforeach()
+    endforeach(_comp)
   endif(NOT Boost_BUILT_FROM_SOURCE)
 endif(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
 
@@ -377,5 +461,5 @@ endif(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
 
 # postcond check
 if (NOT TARGET Boost::headers)
-  message(FATAL_ERROR "FindOrFetchBoost could not targets listed in Boost_{REQUIRED,OPTIONAL}_TARGETS available; set Boost_FETCH_IF_MISSING=ON to build Boost as part of the project")
+  message(FATAL_ERROR "FindOrFetchBoost could not find components listed in Boost_{REQUIRED,OPTIONAL}_COMPONENTS available; set Boost_FETCH_IF_MISSING=ON to build Boost as part of the project")
 endif(NOT TARGET Boost::headers)
