@@ -55,7 +55,8 @@ set(Boost_ALL_COMPONENTS_NONMODULAR
         iostreams
         locale
         log
-        math
+        math_tr1
+        math_c99
         mpi
         program_options
         python
