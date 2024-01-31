@@ -169,6 +169,16 @@ macro(intersection _out _in1 _in2)
     endforeach()
 endmacro()
 
+# elements in _in1 that are not in _in2
+macro(difference _out _in1 _in2)
+    set(${_out})
+    foreach(x IN LISTS ${_in1})
+        if(NOT(x IN_LIST ${_in2}))
+            list(APPEND ${_out} ${x})
+        endif()
+    endforeach()
+endmacro()
+
 # Limit scope of the search if BOOST_ROOT or BOOST_INCLUDEDIR is provided.
 if (BOOST_ROOT OR BOOST_INCLUDEDIR)
     set(Boost_NO_SYSTEM_PATHS TRUE)
@@ -176,6 +186,9 @@ endif()
 
 intersection(Boost_REQUIRED_COMPONENTS_NONMODULAR Boost_REQUIRED_COMPONENTS Boost_ALL_COMPONENTS_NONMODULAR)
 intersection(Boost_OPTIONAL_COMPONENTS_NONMODULAR Boost_OPTIONAL_COMPONENTS Boost_ALL_COMPONENTS_NONMODULAR)
+# Boost_REQUIRED_COMPONENTS_NONMODULAR may intersect with Boost_OPTIONAL_COMPONENTS_NONMODULAR, exclude those components from Boost_OPTIONAL_COMPONENTS_NONMODULAR
+difference(Boost_OPTIONAL_COMPONENTS_NONMODULAR_NOT_IN_REQUIRES Boost_OPTIONAL_COMPONENTS_NONMODULAR Boost_REQUIRED_COMPONENTS_NONMODULAR)
+set(Boost_OPTIONAL_COMPONENTS_NONMODULAR ${Boost_OPTIONAL_COMPONENTS_NONMODULAR_NOT_IN_REQUIRES})
 
 # detect which Boost targets I already have
 foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
