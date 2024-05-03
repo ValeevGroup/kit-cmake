@@ -48,10 +48,21 @@ function(VRGFindOrFetchPackage name url tag)
     FetchContent_Declare(
             ${fcd_args}
     )
-    FetchContent_GetProperties(${name})
+    FetchContent_GetProperties(${name}
+            # override in case ${name} has upper-case letters
+            SOURCE_DIR  ${name}_SOURCE_DIR
+            BINARY_DIR  ${name}_BINARY_DIR
+            POPULATED   ${name}_POPULATED
+    )
     if(NOT ${name}_POPULATED)
         message(STATUS "Setting up ${name} from ${url}")
         FetchContent_Populate(${name})
+        FetchContent_GetProperties(${name}
+                # override in case ${name} has upper-case letters
+                SOURCE_DIR  ${name}_SOURCE_DIR
+                BINARY_DIR  ${name}_BINARY_DIR
+                POPULATED   ${name}_POPULATED
+        )
         if(VRGFFP_ADD_SUBDIR)
             foreach(config ${VRGFFP_CONFIG_SUBDIR})
                 string(REPLACE "=" ";" configkeyval ${config})
