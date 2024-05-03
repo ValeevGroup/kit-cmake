@@ -38,7 +38,7 @@ function(VRGFindOrFetchPackage name url tag)
             ${VRGFFP_VCS}_REPOSITORY ${url}
             ${VRGFFP_VCS}_TAG        ${tag}
             GIT_PROGRESS     ON)
-    if (NOT DEFINED VRGFFP_DISABLE_FIND_PACKAGE)
+    if (NOT VRGFFP_DISABLE_FIND_PACKAGE)
         list(APPEND fcd_args FIND_PACKAGE_ARGS)
         if (DEFINED VRGFFP_FIND_PACKAGE_ARGS)
             list(APPEND fcd_args ${VRGFFP_FIND_PACKAGE_ARGS})
