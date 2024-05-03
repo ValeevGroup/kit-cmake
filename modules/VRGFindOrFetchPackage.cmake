@@ -31,6 +31,18 @@ function(VRGFindOrFetchPackage name url tag)
     set(mvargs CONFIG_SUBDIR)
     cmake_parse_arguments(PARSE_ARGV 3 VRGFFP "${options}" "${svargs}" "${mvargs}")
 
+    # try find_package first
+    if (NOT VRGFFP_DISABLE_FIND_PACKAGE)
+        if (DEFINED VRGFFP_FIND_PACKAGE_ARGS)
+            list(APPEND fcd_args ${VRGFFP_FIND_PACKAGE_ARGS})
+        endif()
+        find_package(${name} QUIET ${VRGFFP_FIND_PACKAGE_ARGS})
+        if (${name}_FOUND)
+            message(STATUS "Found ${name} via find_package")
+            return()
+        endif()
+    endif()
+
     if (NOT DEFINED VRGFFP_VCS)
         set(VRGFFP_VCS "GIT")
     endif()
@@ -38,12 +50,6 @@ function(VRGFindOrFetchPackage name url tag)
             ${VRGFFP_VCS}_REPOSITORY ${url}
             ${VRGFFP_VCS}_TAG        ${tag}
             GIT_PROGRESS     ON)
-    if (NOT VRGFFP_DISABLE_FIND_PACKAGE)
-        list(APPEND fcd_args FIND_PACKAGE_ARGS)
-        if (DEFINED VRGFFP_FIND_PACKAGE_ARGS)
-            list(APPEND fcd_args ${VRGFFP_FIND_PACKAGE_ARGS})
-        endif()
-    endif()
 
     FetchContent_Declare(
             ${fcd_args}
@@ -85,5 +91,7 @@ function(VRGFindOrFetchPackage name url tag)
                 add_subdirectory(${${name}_SOURCE_DIR} ${${name}_BINARY_DIR})
             endif()
         endif()
+    else()
+        message(FATAL_ERROR "Failed to make ${name} available")
     endif()
 endfunction(VRGFindOrFetchPackage)
