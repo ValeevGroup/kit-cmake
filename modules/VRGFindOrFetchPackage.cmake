@@ -21,7 +21,7 @@ include(FetchContent)
 # ADD_SUBDIR - if set and find_package failed, will add the package source tree as a subdirectory of the current project (see add_subdirectory)
 # ADD_SUBDIR_EXCLUDE_FROM_ALL - if set and ADD_SUBDIR is set, will give EXCLUDE_FROM_ALL option to add_subdirectory
 # VCS V - if set and find_package failed, will use V in place of GIT in GIT_REPOSITORY and GIT_TAG arguments of FetchContent_Declare
-# FIND_PACKAGE_ARGS "ARG1;[ARG2]" - if DISABLE_FIND_PACKAGE is not set, pass these arguments to find_package
+# FIND_PACKAGE_ARGS "ARG1;[ARG2]" - if DISABLE_FIND_PACKAGE is not set, pass these arguments to find_package; see find_package documentation
 # CONFIG_SUBDIR VAR1=VALUE1 [VAR2=VALUE2] - if find_package failed and ADD_SUBDIR is set,  this specifies a list of CACHE variables to be set before add_subdirectory is called
 
 # based on https://github.com/ceres-solver/ceres-solver/issues/451#issue-399000672
@@ -33,10 +33,7 @@ function(VRGFindOrFetchPackage name url tag)
 
     # try find_package first
     if (NOT VRGFFP_DISABLE_FIND_PACKAGE)
-        if (DEFINED VRGFFP_FIND_PACKAGE_ARGS)
-            list(APPEND fcd_args ${VRGFFP_FIND_PACKAGE_ARGS})
-        endif()
-        find_package(${name} QUIET ${VRGFFP_FIND_PACKAGE_ARGS})
+        find_package(${name} ${VRGFFP_FIND_PACKAGE_ARGS} QUIET)
         if (${name}_FOUND)
             message(STATUS "Found ${name} via find_package")
             return()
