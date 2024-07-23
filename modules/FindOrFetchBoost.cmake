@@ -270,13 +270,13 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   endif()
 
   include (FetchContent)
-  cmake_minimum_required (VERSION 3.14.0)  # for FetchContent_MakeAvailable
+  cmake_minimum_required (VERSION 3.24.0)  # for ExternalProject_add's DOWNLOAD_EXTRACT_TIMESTAMP option
 
   set(BOOST_SUPERPROJECT_VERSION 1.84.0)
   FetchContent_Declare(
           Boost
           URL https://github.com/boostorg/boost/releases/download/boost-${BOOST_SUPERPROJECT_VERSION}/boost-${BOOST_SUPERPROJECT_VERSION}.tar.xz
-          URL_MD5 893b5203b862eb9bbd08553e24ff146a
+          URL_HASH MD5=893b5203b862eb9bbd08553e24ff146a
           DOWNLOAD_EXTRACT_TIMESTAMP ON
   )
 
