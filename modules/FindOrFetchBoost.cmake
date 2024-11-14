@@ -210,6 +210,9 @@ if (DEFINED Boost_CONFIG OR NOT TARGET Boost::headers)
   find_package(Boost ${Boost_OLDEST_BOOST_VERSION} CONFIG COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
 endif()
 if (NOT DEFINED Boost_CONFIG AND NOT TARGET Boost::headers)
+    if(POLICY CMP0167)
+      cmake_policy(SET CMP0167 NEW)
+    endif()
     find_package(Boost ${Boost_OLDEST_BOOST_VERSION} COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
     if (TARGET Boost::headers)
         set(Boost_USE_CONFIG FALSE)
@@ -420,7 +423,7 @@ endif()
 set(Boost_CONFIG_FILE_CONTENTS
 "
 # converts modular component _comp to list of targets defined by the component
-# target name x means TARGET Boost::x is defined .. this is provided just in case on needs to map comonents to targets
+# target name x means TARGET Boost::x is defined .. this is provided just in case on needs to map components to targets
 macro(component_to_targets _comp _targets)
     if (\${\${_comp}} STREQUAL test)
         set(\${_targets} unit_test_framework)
