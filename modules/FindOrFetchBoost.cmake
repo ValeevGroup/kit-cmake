@@ -100,8 +100,8 @@ set(Boost_ALL_COMPONENTS
         headers
         integer
         intrusive
-        iterator
         io
+        iostreams
         iterator
         lexical_cast
         logic
