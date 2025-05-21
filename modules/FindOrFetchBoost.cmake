@@ -329,6 +329,9 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   set(BOOST_INCLUDE_LIBRARIES ${BOOST_INCLUDE_LIBRARIES_CURRENT})
   set(BOOST_INCLUDE_LIBRARIES_FULL "headers;${BOOST_INCLUDE_LIBRARIES};${Boost_ALL_COMPONENTS}")
   list(REMOVE_DUPLICATES BOOST_INCLUDE_LIBRARIES_FULL)
+  if (DEFINED BOOST_EXCLUDE_LIBRARIES)
+    list(REMOVE_ITEM BOOST_INCLUDE_LIBRARIES_FULL ${BOOST_EXCLUDE_LIBRARIES})
+  endif()
 
   # Boost install is only enabled when Boost is the top-level project, and there is no way to override
   # this, so here we invoke boost_install commands ourselves; this requires setting some variables that are set
