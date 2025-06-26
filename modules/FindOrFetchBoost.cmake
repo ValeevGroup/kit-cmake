@@ -25,6 +25,7 @@
 # Boost_REQUIRED_COMPONENTS: list of required components; these are components defined by the modular Boost (not by the old cmake harness)
 # Boost_OPTIONAL_COMPONENTS: list of optional components; these are components defined by the modular Boost (not by the old cmake harness)
 # Boost_FETCH_IF_MISSING: if set to ON, will download and build Boost if it is not found
+# Boost_EXCLUDE_LIBRARIES: A semicolon-separated list of libraries to exclude from the build (and installation.) This is useful if a library causes an error in the CMake configure phase. Most information can be found [https://github.com/boostorg/cmake?tab=readme-ov-file#configuration-variables](here).
 
 # hints:
 # BOOST_ROOT: preferred installation prefix (see https://cmake.org/cmake/help/latest/module/FindBoost.html)
@@ -365,7 +366,9 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
       # convert target T to boost_T
       set(__lib_targets_w_boost_prepended )
       foreach(__target IN LISTS __lib_targets)
-          list(APPEND __lib_targets_w_boost_prepended boost_${__target})
+          if (TARGET boost_${__target})
+              list(APPEND __lib_targets_w_boost_prepended boost_${__target})
+          endif()
       endforeach()
 
       boost_install(TARGETS "${__lib_targets_w_boost_prepended}" VERSION "${BOOST_SUPERPROJECT_VERSION}" HEADER_DIRECTORY "${__HEADER_DIRECTORY}")
