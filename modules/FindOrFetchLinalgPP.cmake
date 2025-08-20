@@ -9,12 +9,13 @@ if (NOT TARGET blaspp)
     if (TARGET blaspp)
         message(STATUS "Found blaspp CONFIG at ${blaspp_CONFIG}")
     else (TARGET blaspp)
-        cmake_minimum_required(VERSION 3.14.0)  # for FetchContent_MakeAvailable
+        cmake_minimum_required(VERSION 3.25.0)  # for FetchContent_MakeAvailable's SYSTEM option
         include(FetchContent)
         include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
         FetchContent_Declare(blaspp
                 GIT_REPOSITORY https://github.com/icl-utk-edu/blaspp.git
                 GIT_TAG ${VGCMAKEKIT_TRACKED_BLASPP_TAG}
+                SYSTEM
                 )
 
         FetchContent_MakeAvailable(blaspp)
@@ -30,12 +31,13 @@ if (NOT TARGET lapackpp)
     if (TARGET lapackpp)
         message(STATUS "Found lapackpp CONFIG at ${lapackpp_CONFIG}")
     else (TARGET lapackpp)
-        cmake_minimum_required(VERSION 3.14.0)  # for FetchContent_MakeAvailable
+        cmake_minimum_required(VERSION 3.25.0)  # for FetchContent_MakeAvailable's SYSTEM option
         include(FetchContent)
         include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
         FetchContent_Declare(lapackpp
                 GIT_REPOSITORY https://github.com/icl-utk-edu/lapackpp.git
                 GIT_TAG ${VGCMAKEKIT_TRACKED_LAPACKPP_TAG}
+                SYSTEM
                 )
 
         FetchContent_MakeAvailable(lapackpp)
