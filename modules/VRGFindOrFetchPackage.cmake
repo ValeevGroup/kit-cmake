@@ -20,6 +20,7 @@ include(FetchContent)
 # DISABLE_FIND_PACKAGE - if set, will not use find_package to try finding the package
 # ADD_SUBDIR - if set and find_package failed, will add the package source tree as a subdirectory of the current project (see add_subdirectory)
 # ADD_SUBDIR_EXCLUDE_FROM_ALL - if set and ADD_SUBDIR is set, will give EXCLUDE_FROM_ALL option to add_subdirectory
+# ADD_SUBDIR_SYSTEM - if set and ADD_SUBDIR is set, will give SYSTEM option to add_subdirectory
 # VCS V - if set and find_package failed, will use V in place of GIT in GIT_REPOSITORY and GIT_TAG arguments of FetchContent_Declare
 # FIND_PACKAGE_ARGS "ARG1;[ARG2]" - if DISABLE_FIND_PACKAGE is not set, pass these arguments to find_package; see find_package documentation
 # EPADD_ARGS "ARG1;[ARG2]" - if find_package failed this specifies a list of ExternalProject_add options that can be passed to FetchContent_Declare (e.g.: EPADD_ARGS "PATCH_COMMAND;sed;-i;-e;s/a\\ b/c\\ d/g", note how spaces are replaced by semicolons and spaces in strings are escaped ; see https://cmake.org/cmake/help/latest/module/FetchContent.html#command:fetchcontent_declare for more details)
@@ -27,7 +28,7 @@ include(FetchContent)
 
 # based on https://github.com/ceres-solver/ceres-solver/issues/451#issue-399000672
 function(VRGFindOrFetchPackage name url tag)
-    set(options DISABLE_FIND_PACKAGE ADD_SUBDIR ADD_SUBDIR_EXCLUDE_FROM_ALL)
+    set(options DISABLE_FIND_PACKAGE ADD_SUBDIR ADD_SUBDIR_EXCLUDE_FROM_ALL ADD_SUBDIR_SYSTEM)
     set(svargs VCS FIND_PACKAGE_ARGS EPADD_ARGS)
     set(mvargs CONFIG_SUBDIR)
     cmake_parse_arguments(PARSE_ARGV 3 VRGFFP "${options}" "${svargs}" "${mvargs}")
@@ -58,6 +59,9 @@ function(VRGFindOrFetchPackage name url tag)
     endif()
     if (VRGFFP_ADD_SUBDIR_EXCLUDE_FROM_ALL)
         list(APPEND fcd_args EXCLUDE_FROM_ALL)
+    endif()
+    if (VRGFFP_ADD_SUBDIR_SYSTEM)
+        list(APPEND fcd_args SYSTEM)
     endif()
 
     if(VRGFFP_EPADD_ARGS)
