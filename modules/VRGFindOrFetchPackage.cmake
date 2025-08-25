@@ -20,6 +20,7 @@ include(FetchContent)
 # DISABLE_FIND_PACKAGE - if set, will not use find_package to try finding the package
 # ADD_SUBDIR - if set and find_package failed, will add the package source tree as a subdirectory of the current project (see add_subdirectory)
 # ADD_SUBDIR_EXCLUDE_FROM_ALL - if set and ADD_SUBDIR is set, will give EXCLUDE_FROM_ALL option to add_subdirectory
+# ADD_SUBDIR_SYSTEM - if set and ADD_SUBDIR is set, will give SYSTEM option to add_subdirectory
 # VCS V - if set and find_package failed, will use V in place of GIT in GIT_REPOSITORY and GIT_TAG arguments of FetchContent_Declare
 # FIND_PACKAGE_ARGS "ARG1;[ARG2]" - if DISABLE_FIND_PACKAGE is not set, pass these arguments to find_package; see find_package documentation
 # EPADD_ARGS "ARG1;[ARG2]" - if find_package failed this specifies a list of ExternalProject_add options that can be passed to FetchContent_Declare (e.g.: EPADD_ARGS "PATCH_COMMAND;sed;-i;-e;s/a\\ b/c\\ d/g", note how spaces are replaced by semicolons and spaces in strings are escaped ; see https://cmake.org/cmake/help/latest/module/FetchContent.html#command:fetchcontent_declare for more details)
@@ -27,7 +28,7 @@ include(FetchContent)
 
 # based on https://github.com/ceres-solver/ceres-solver/issues/451#issue-399000672
 function(VRGFindOrFetchPackage name url tag)
-    set(options DISABLE_FIND_PACKAGE ADD_SUBDIR ADD_SUBDIR_EXCLUDE_FROM_ALL)
+    set(options DISABLE_FIND_PACKAGE ADD_SUBDIR ADD_SUBDIR_EXCLUDE_FROM_ALL ADD_SUBDIR_SYSTEM)
     set(svargs VCS FIND_PACKAGE_ARGS EPADD_ARGS)
     set(mvargs CONFIG_SUBDIR)
     cmake_parse_arguments(PARSE_ARGV 3 VRGFFP "${options}" "${svargs}" "${mvargs}")
@@ -47,7 +48,21 @@ function(VRGFindOrFetchPackage name url tag)
     set(fcd_args ${name}
             ${VRGFFP_VCS}_REPOSITORY ${url}
             ${VRGFFP_VCS}_TAG        ${tag}
-            GIT_PROGRESS     ON)
+            GIT_PROGRESS     ON
+    )
+    if (NOT VRGFFP_ADD_SUBDIR)
+        # Setting SOURCE_SUBDIR to a non-existing directory is the suggested workaround
+        # to prevent FetchContent_MakeAvailable to add_subdirectory until
+        # https://gitlab.kitware.com/cmake/cmake/-/issues/26220 gets implemented
+        # See also https://discourse.cmake.org/t/prevent-fetchcontent-makeavailable-to-execute-cmakelists-txt/12704
+        list(APPEND fcd_args SOURCE_SUBDIR "_No add_subdirectory please_")
+    endif()
+    if (VRGFFP_ADD_SUBDIR_EXCLUDE_FROM_ALL)
+        list(APPEND fcd_args EXCLUDE_FROM_ALL)
+    endif()
+    if (VRGFFP_ADD_SUBDIR_SYSTEM)
+        list(APPEND fcd_args SYSTEM)
+    endif()
 
     if(VRGFFP_EPADD_ARGS)
         message(STATUS "VRGFFP_EPADD_ARGS=${VRGFFP_EPADD_ARGS}")
@@ -65,14 +80,6 @@ function(VRGFindOrFetchPackage name url tag)
             POPULATED   ${name}_POPULATED
     )
     if(NOT ${name}_POPULATED)
-        message(STATUS "Setting up ${name} from ${url}")
-        FetchContent_Populate(${name})
-        FetchContent_GetProperties(${name}
-                # override in case ${name} has upper-case letters
-                SOURCE_DIR  ${name}_SOURCE_DIR
-                BINARY_DIR  ${name}_BINARY_DIR
-                POPULATED   ${name}_POPULATED
-        )
         if(VRGFFP_ADD_SUBDIR)
             foreach(config ${VRGFFP_CONFIG_SUBDIR})
                 string(REPLACE "=" ";" configkeyval ${config})
@@ -87,13 +94,20 @@ function(VRGFindOrFetchPackage name url tag)
                 message(STATUS "Set ${configkey} = ${configval}")
                 set(${configkey} ${configval} CACHE INTERNAL "" FORCE)
             endforeach()
+        endif()
+
+        message(STATUS "Setting up ${name} from ${url}")
+        FetchContent_MakeAvailable(${name})
+        FetchContent_GetProperties(${name}
+                # override in case ${name} has upper-case letters
+                SOURCE_DIR  ${name}_SOURCE_DIR
+                BINARY_DIR  ${name}_BINARY_DIR
+                POPULATED   ${name}_POPULATED
+        )
+
+        if(VRGFFP_ADD_SUBDIR)
             set(${name}_SOURCE_DIR ${${name}_SOURCE_DIR} PARENT_SCOPE)
             set(${name}_BINARY_DIR ${${name}_BINARY_DIR} PARENT_SCOPE)
-            if (VRGFFP_ADD_SUBDIR_EXCLUDE_FROM_ALL)
-                add_subdirectory(${${name}_SOURCE_DIR} ${${name}_BINARY_DIR} EXCLUDE_FROM_ALL)
-            else()
-                add_subdirectory(${${name}_SOURCE_DIR} ${${name}_BINARY_DIR})
-            endif()
         endif()
     else()
         message(FATAL_ERROR "Failed to make ${name} available")

@@ -273,7 +273,7 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   endif()
 
   include (FetchContent)
-  cmake_minimum_required (VERSION 3.24.0)  # for ExternalProject_add's DOWNLOAD_EXTRACT_TIMESTAMP option
+  cmake_minimum_required (VERSION 3.25.0)  # for ExternalProject_add's SYSTEM option
 
   set(BOOST_SUPERPROJECT_VERSION 1.84.0)
   FetchContent_Declare(
@@ -281,6 +281,8 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
           URL https://github.com/boostorg/boost/releases/download/boost-${BOOST_SUPERPROJECT_VERSION}/boost-${BOOST_SUPERPROJECT_VERSION}.tar.xz
           URL_HASH MD5=893b5203b862eb9bbd08553e24ff146a
           DOWNLOAD_EXTRACT_TIMESTAMP ON
+          EXCLUDE_FROM_ALL
+          SYSTEM
   )
 
   if (NOT DEFINED BOOST_INCLUDE_LIBRARIES)
@@ -305,15 +307,9 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   if(NOT Boost_POPULATED)
 
     message(STATUS "Fetching Boost")
-    FetchContent_Populate(Boost)
+    FetchContent_MakeAvailable(Boost)
     message(STATUS "Fetching Boost done")
-    FetchContent_GetProperties(Boost
-            SOURCE_DIR Boost_SOURCE_DIR
-            BINARY_DIR Boost_BINARY_DIR
-    )
 
-    message(STATUS "Configuring Boost: downloaded to ${Boost_SOURCE_DIR}, to be built in ${Boost_BINARY_DIR}")
-    add_subdirectory(${Boost_SOURCE_DIR} ${Boost_BINARY_DIR} EXCLUDE_FROM_ALL)
     # unity build not supported for some Boost libraries
     foreach (unity_broken_lib locale serialization)
       if (TARGET boost_${unity_broken_lib})
