@@ -55,7 +55,7 @@ macro(vgkit_cmake_git_description)
       find_package(Git REQUIRED)
       if (GIT_FOUND)
         execute_process(
-                COMMAND ${GIT_EXECUTABLE} describe --dirty
+                COMMAND ${GIT_EXECUTABLE} describe --dirty --tags
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                 RESULT_VARIABLE vgkit_cmake_git_description_errcod
                 OUTPUT_VARIABLE ${vgkit_cmake_git_description_result}
