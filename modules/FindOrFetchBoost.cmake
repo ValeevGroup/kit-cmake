@@ -148,7 +148,7 @@ set(Boost_ALL_COMPONENTS
         variant2
         winapi)
 
-set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
+set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;iostreams;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
 
 # converts modular component _comp to list of targets defined by the component
 # target name x means TARGET Boost::x is defined
