@@ -138,3 +138,55 @@ int main() { std::unordered_map<std::string,int> m; m[\"k\"]=1; return 0; }
   unset(_clmm_modify_global)
 
 endmacro(vgkit_check_libcxx_linker_mismatch)
+
+# P0522R0 (relaxed matching of template template arguments) is required by
+# code that passes class templates with defaulted parameters (e.g.
+# small_vector<T, N=...>) to template template parameters expecting fewer
+# args (e.g. template <class> class Container).
+#
+# - GCC has supported this since GCC 7 (default in all C++17 modes)
+# - LLVM Clang enabled it by default in Clang 19; earlier versions need
+#   -frelaxed-template-template-args
+# - AppleClang 17+ works; AppleClang 16 and earlier do not support it at all
+#
+# This macro tests whether P0522R0 works out of the box and, if not, tries
+# adding -frelaxed-template-template-args.
+#
+# Sets VGKIT_P0522R0_COMPILE_FLAG in the caller's scope to the compile
+# option needed (empty string if P0522R0 works natively).  The caller
+# decides how to apply it (e.g. target_compile_options on specific targets).
+# On failure, emits FATAL_ERROR.
+macro(vgkit_check_p0522r0)
+
+  set(VGKIT_P0522R0_COMPILE_FLAG)
+
+  cmake_push_check_state(RESET)
+  check_cxx_source_compiles("
+template <class T, int N = 10> struct SmallVec {};
+template <template <class> class C> void f() { C<int> v; }
+int main() { f<SmallVec>(); return 0; }
+" VGKIT_CXX_HAS_P0522R0)
+  cmake_pop_check_state()
+
+  if (NOT VGKIT_CXX_HAS_P0522R0)
+    cmake_push_check_state(RESET)
+    set(CMAKE_REQUIRED_FLAGS "-frelaxed-template-template-args")
+    check_cxx_source_compiles("
+template <class T, int N = 10> struct SmallVec {};
+template <template <class> class C> void f() { C<int> v; }
+int main() { f<SmallVec>(); return 0; }
+" VGKIT_CXX_HAS_P0522R0_WITH_FLAG)
+    cmake_pop_check_state()
+
+    if (VGKIT_CXX_HAS_P0522R0_WITH_FLAG)
+      set(VGKIT_P0522R0_COMPILE_FLAG "-frelaxed-template-template-args")
+      message(STATUS "P0522R0 requires -frelaxed-template-template-args")
+    else()
+      message(FATAL_ERROR
+        "Compiler does not support P0522R0 (relaxed template template argument matching), "
+        "even with -frelaxed-template-template-args. Use a newer compiler "
+        "(GCC >= 7, Clang >= 19, or AppleClang >= 17).")
+    endif()
+  endif()
+
+endmacro(vgkit_check_p0522r0)
