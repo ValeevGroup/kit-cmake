@@ -76,10 +76,10 @@ macro(vgkit_check_libcxx_linker_mismatch)
 #include <unordered_map>
 #include <string>
 int main() { std::unordered_map<std::string,int> m; m[\"k\"]=1; return 0; }
-" VGKIT_LIBCXX_LINKS)
+" VGKIT_LIBCXX_LINKS_${PROJECT_NAME})
     cmake_pop_check_state()
 
-    if (NOT VGKIT_LIBCXX_LINKS)
+    if (NOT VGKIT_LIBCXX_LINKS_${PROJECT_NAME})
       # Derive libc++ lib dir: -print-resource-dir gives <root>/lib/clang/<ver>
       execute_process(
         COMMAND ${CMAKE_CXX_COMPILER} -print-resource-dir
@@ -97,10 +97,10 @@ int main() { std::unordered_map<std::string,int> m; m[\"k\"]=1; return 0; }
 #include <unordered_map>
 #include <string>
 int main() { std::unordered_map<std::string,int> m; m[\"k\"]=1; return 0; }
-" VGKIT_LIBCXX_LINKS_WITH_FLAGS)
+" VGKIT_LIBCXX_LINKS_WITH_FLAGS_${PROJECT_NAME})
         cmake_pop_check_state()
 
-        if (VGKIT_LIBCXX_LINKS_WITH_FLAGS)
+        if (VGKIT_LIBCXX_LINKS_WITH_FLAGS_${PROJECT_NAME})
           if (_clmm_modify_global)
             message(STATUS "libc++ linker mismatch detected; adding -L${_clang_libcxx_dir} to global linker flags")
             string(APPEND CMAKE_EXE_LINKER_FLAGS
