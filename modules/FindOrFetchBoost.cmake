@@ -275,11 +275,11 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   include (FetchContent)
   cmake_minimum_required (VERSION 3.25.0)  # for ExternalProject_add's SYSTEM option
 
-  set(BOOST_SUPERPROJECT_VERSION 1.84.0)
+  set(BOOST_SUPERPROJECT_VERSION 1.92.0)
   FetchContent_Declare(
           Boost
-          URL https://github.com/boostorg/boost/releases/download/boost-${BOOST_SUPERPROJECT_VERSION}/boost-${BOOST_SUPERPROJECT_VERSION}.tar.xz
-          URL_HASH MD5=893b5203b862eb9bbd08553e24ff146a
+          URL https://github.com/boostorg/boost/releases/download/boost-${BOOST_SUPERPROJECT_VERSION}/boost-${BOOST_SUPERPROJECT_VERSION}-cmake.7z
+          URL_HASH MD5=20b0fa0373bd67d8d2962061edf5f9b8
           DOWNLOAD_EXTRACT_TIMESTAMP ON
           EXCLUDE_FROM_ALL
           SYSTEM
