@@ -76,6 +76,9 @@ vgkit_boost_case(NAME found_b2_compiled_missing SOURCE generic LABEL hermetic PR
   ARGS "-DCASE_REQUIRED=headers,regex" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
   REGEX "lacks[ \n]+required[ \n]+component\\(s\\)[ \n]+regex"
   FAIL_REGEX "${NOFETCH}")
+# subproject asks for a target its parent's find_package imported as a dependency
+vgkit_boost_case(NAME found_superbuild SOURCE found_superbuild LABEL hermetic PREFIX b2-1.83
+  REGEX "RESULT sub built=OFF modular=ON version=1.83.0 targets=headers;container;serialization")
 # CMake-harness install lacking a required component: error, never fetch
 vgkit_boost_case(NAME found_cmake_incomplete SOURCE generic LABEL hermetic PREFIX cmake-incomplete-1.90
   ARGS "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
