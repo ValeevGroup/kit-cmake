@@ -1,74 +1,189 @@
 # -*- mode: cmake -*-
 
+# FindOrFetchBoost: imports Boost >= Boost_OLDEST_BOOST_VERSION via its CMake config package (BoostConfig.cmake),
+# or, if no Boost is found and Boost_FETCH_IF_MISSING is ON, builds Boost from source via FetchContent.
+#
 # definitions:
-# - "library": e.g. Boost.PropertyTree, corresponds to the contents of subdirectory contained in libs/
-# - "component": Boost package components given via
-#   - COMPONENTS and OPTIONAL_COMPONENTS) to the find_package command used to import Boost in CMake, or
-#   - Boost_INCLUDE_LIBRARIES variable passed to the Boost CMake harness used by the FetchContent command to build Boost
-#     from source
-# - "target": an IMPORTED CMake target defined by Boost, e.g. Boost::headers
-
-# facts:
-# - every library X (Boost.X) is usually also a component X, but
-#   - some correspond to multiple components or versioned components (e.g. Boost.Python is a library that corresponds to components pythonXY and numpyXY,
-#     where XY is the Python version), and some correspond to no components or a part of a component (e.g. ccomponent
-#     "headers"  contains all header-only libraries
-#   - basically, original Boost CMake toolkit (i.e., the FindBoost CMake module) had 1 component (boost)
-#     for all header-onlu libraries and one component for each non-header-only library
-#   - modular Boost CMake harness has at least component per library (header-only or otherwise),
-#     but sometimes more than 1
-# - every component X usually correspond to IMPORTED target Boost::X ; exceptions include:
-#   - Boost::boost is not a component; Boost::headers is an alias for Boost::boost
-#   - targets Boost::numeric_{conversion,interval,odeint,ublas} are defined by component numeric
-
+# - "component": name of a Boost library as given in Boost_{REQUIRED,OPTIONAL}_COMPONENTS, e.g. container_hash;
+#   component X corresponds to target Boost::X, except component "test" <-> target Boost::unit_test_framework
+# - Boost installs come in two flavors:
+#   - built by b2: defines Boost::headers (all header-only libraries) and one target per compiled library;
+#     before 1.92 such BoostConfig.cmake rejects header-only components, so for those this module defines
+#     Boost::X as an alias-like INTERFACE target linking Boost::headers (what 1.92+ b2 configs do natively)
+#   - built by the Boost CMake harness (vcpkg, a Boost fetched and installed by this module): one CMake package
+#     boost_X per library, header-only or not
+#
 # input variables:
-# Boost_REQUIRED_COMPONENTS: list of required components; these are components defined by the modular Boost (not by the old cmake harness)
-# Boost_OPTIONAL_COMPONENTS: list of optional components; these are components defined by the modular Boost (not by the old cmake harness)
-# Boost_FETCH_IF_MISSING: if set to ON, will download and build Boost if it is not found
-
+# Boost_REQUIRED_COMPONENTS: list of required components
+# Boost_OPTIONAL_COMPONENTS: list of optional components
+# Boost_OLDEST_BOOST_VERSION: oldest acceptable version of a found Boost
+# Boost_FETCH_IF_MISSING: if ON, will download and build Boost if it is not found
+# BOOST_EXCLUDE_LIBRARIES: libraries not to configure when building Boost from source
+#
 # hints:
-# BOOST_ROOT: preferred installation prefix (see https://cmake.org/cmake/help/latest/module/FindBoost.html)
-# BOOST_INCLUDEDIR: preferred include directory e.g. <prefix>/include. (see https://cmake.org/cmake/help/latest/module/FindBoost.html)
-
+# Boost_ROOT (or BOOST_ROOT): preferred installation prefix
+# BOOST_INCLUDEDIR: preferred include directory, e.g. <prefix>/include; used as Boost_ROOT=<prefix> if Boost_ROOT not given
+#
+# errors (never fall back to fetching in these cases):
+# - a Boost was found but lacks some of Boost_REQUIRED_COMPONENTS
+# - only an install of Boost built by an older version of this module (per-library boost_X configs, no
+#   BoostConfig.cmake) was found; it must be reinstalled
+#
 # output variables:
 # Boost_BUILT_FROM_SOURCE: ON if Boost was built from source
-# Boost_USE_CONFIG: if Boost_BUILT_FROM_SOURCE is ON, this indicates whether found Boost via config mode
-# Boost_CONFIG: if Boost_BUILT_FROM_SOURCE and Boost_USE_CONFIG are ON, this specifies the config file used
-# Boost_IS_MODULARIZED: if Boost targets are modularized (i.e. not the old cmake harness)
-# Boost_FOUND_COMPONENTS: list of modular components that were found
-# Boost_FOUND_TARGETS: list of modular targets (X in Boost::X or boost_X) that were found
-# Boost_FOUND_COMPONENTS_NONMODULAR: list of non-modular components that were found
-# Boost_FOUND_TARGETS_NONMODULAR: list of non-modular targets (X in Boost::X) that were found
-# Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL: CACHE variable containing the list of modular targets that
+# Boost_USE_CONFIG: ON if Boost was found (always via its config file)
+# Boost_CONFIG: if Boost_USE_CONFIG is ON, the config file used
+# Boost_IS_MODULARIZED: ON; target Boost::X exists for every found component X
+# Boost_FOUND_COMPONENTS: list of components that were found
+# Boost_FOUND_TARGETS: list of targets (X in Boost::X) that were found
+# Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL: CACHE variable containing the list of targets that
 #   are not built automatically when the "install" target is built; if Boost_BUILT_FROM_SOURCE is ON,
 #   for each target X in this list user will want to add an artificial dependence of their target(s)
 #   on target boost_X
+# Boost_CONFIG_FILE_CONTENTS: CMake code to paste into the package config file of the project, imports the same Boost
 
-# list of all non-modular components
-set(Boost_ALL_COMPONENTS_NONMODULAR
-        headers
-        # see https://www.boost.org/doc/libs/master/more/getting_started/unix-variants.html#header-only-libraries
-        chrono
-        context
-        graph
-        filesystem
-        iostreams
-        locale
-        log
-        math_tr1
-        math_c99
-        mpi
-        program_options
-        python
-        random
-        regex
-        serialization
-        thread
-        timer
-        wave
-   )
+set(vgkit_boost_fetch_version 1.92.0)
+set(vgkit_boost_fetch_sha256 9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d)
 
-# list of all modular components
+set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;iostreams;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
+
+# converts component _comp to list of targets defined by the component
+# target name x means TARGET Boost::x is defined
+macro(component_to_targets _comp _targets)
+    if (${${_comp}} STREQUAL test)
+        set(${_targets} unit_test_framework)
+    else()
+        set(${_targets} ${${_comp}})
+    endif()
+endmacro()
+
+# helpers used here and by the code in Boost_CONFIG_FILE_CONTENTS
+set(_vgkit_boost_helpers [=[
+# components that are compiled libraries in some Boost >= 1.81 built by b2, i.e. can be passed to b2's
+# BoostConfig.cmake; all other components are header-only (cf. __boost_hdronly_libraries in boost_install's
+# BoostConfig.cmake, Boost 1.92)
+set(vgkit_boost_compiled_components atomic charconv chrono cobalt container context contract coroutine date_time
+    exception fiber filesystem graph graph_parallel iostreams json locale log mpi nowide process program_options
+    python random regex serialization system test thread timer type_erasure url wave)
+
+macro(vgkit_boost_shim_headeronly _tgt)
+  if (NOT TARGET Boost::${_tgt})
+    add_library(Boost::${_tgt} INTERFACE IMPORTED GLOBAL)
+    set_property(TARGET Boost::${_tgt} APPEND PROPERTY INTERFACE_LINK_LIBRARIES Boost::headers)
+  endif()
+endmacro()
+
+# vgkit_boost_resolve_components(<missing-var> <component>...): for the found Boost (Boost_VERSION, Boost_DIR)
+# makes sure that Boost::<target> is defined for each component; appends the components the install lacks to <missing-var>
+function(vgkit_boost_resolve_components _missing)
+  set(_miss)
+  foreach(_c IN LISTS ARGN)
+    if (_c STREQUAL "test")
+      set(_t unit_test_framework)
+    else()
+      set(_t ${_c})
+    endif()
+    if (TARGET Boost::${_t})
+      continue()
+    endif()
+    if (NOT _c IN_LIST vgkit_boost_compiled_components)
+      # CMake-harness installs have a package per header-only library
+      find_package(boost_${_t} ${Boost_VERSION} EXACT CONFIG QUIET PATHS "${Boost_DIR}/.." NO_DEFAULT_PATH)
+      if (TARGET Boost::${_t})
+        continue()
+      endif()
+      # ... b2 installs do not, and have no boost_config package either
+      find_package(boost_config ${Boost_VERSION} EXACT CONFIG QUIET PATHS "${Boost_DIR}/.." NO_DEFAULT_PATH)
+      if (NOT boost_config_FOUND)
+        vgkit_boost_shim_headeronly(${_t})
+        continue()
+      endif()
+    endif()
+    list(APPEND _miss ${_c})
+  endforeach()
+  set(${_missing} ${${_missing}} ${_miss} PARENT_SCOPE)
+endfunction()
+]=])
+cmake_language(EVAL CODE "${_vgkit_boost_helpers}")
+
+# requested components, sans headers (always required)
+set(__vgkit_boost_required ${Boost_REQUIRED_COMPONENTS})
+set(__vgkit_boost_optional ${Boost_OPTIONAL_COMPONENTS})
+list(REMOVE_ITEM __vgkit_boost_required headers)
+list(REMOVE_ITEM __vgkit_boost_optional headers)
+list(REMOVE_DUPLICATES __vgkit_boost_required)
+list(REMOVE_DUPLICATES __vgkit_boost_optional)
+foreach(__comp IN LISTS __vgkit_boost_required)
+  list(REMOVE_ITEM __vgkit_boost_optional ${__comp})
+endforeach()
+
+if (DEFINED BOOST_ROOT AND NOT DEFINED Boost_ROOT)
+  set(Boost_ROOT "${BOOST_ROOT}")
+endif()
+if (DEFINED BOOST_INCLUDEDIR AND NOT DEFINED Boost_ROOT)
+  get_filename_component(Boost_ROOT "${BOOST_INCLUDEDIR}/.." ABSOLUTE)
+endif()
+
+# Boost built from source by an earlier invocation (e.g. by the parent project) is reused
+if (TARGET boost_headers)
+  get_target_property(__vgkit_boost_headers_imported boost_headers IMPORTED)
+  if (NOT __vgkit_boost_headers_imported)
+    set(Boost_BUILT_FROM_SOURCE ON)
+  endif()
+endif()
+
+if (NOT Boost_BUILT_FROM_SOURCE)
+  set(__vgkit_boost_find_components)
+  foreach(__comp IN LISTS __vgkit_boost_required __vgkit_boost_optional)
+    if (__comp IN_LIST vgkit_boost_compiled_components)
+      component_to_targets(__comp __targets)
+      list(APPEND __vgkit_boost_find_components ${__targets})
+    endif()
+  endforeach()
+  # all components are optional here, missing required components are diagnosed below rather than treated as Boost not found
+  find_package(Boost ${Boost_OLDEST_BOOST_VERSION} CONFIG QUIET OPTIONAL_COMPONENTS ${__vgkit_boost_find_components})
+
+  if (Boost_FOUND)
+    set(Boost_USE_CONFIG ON)
+    set(__vgkit_boost_missing)
+    vgkit_boost_resolve_components(__vgkit_boost_missing ${__vgkit_boost_required})
+    if (__vgkit_boost_missing)
+      message(FATAL_ERROR "FindOrFetchBoost: found Boost ${Boost_VERSION} at ${Boost_DIR} lacks required component(s) ${__vgkit_boost_missing}; install them or point Boost_ROOT/CMAKE_PREFIX_PATH at a complete Boost")
+    endif()
+    vgkit_boost_resolve_components(__vgkit_boost_missing ${__vgkit_boost_optional})
+  else()
+    # look for Boost installed by an older version of this module: per-library configs only, no BoostConfig.cmake
+    set(__vgkit_boost_prefixes ${Boost_ROOT} ${CMAKE_PREFIX_PATH} $ENV{CMAKE_PREFIX_PATH})
+    if (NOT DEFINED CMAKE_FIND_USE_CMAKE_SYSTEM_PATH OR CMAKE_FIND_USE_CMAKE_SYSTEM_PATH)
+      list(APPEND __vgkit_boost_prefixes ${CMAKE_SYSTEM_PREFIX_PATH})
+    endif()
+    set(__vgkit_boost_oldkit)
+    foreach(__prefix IN LISTS __vgkit_boost_prefixes)
+      file(GLOB __cfgs "${__prefix}/lib*/cmake/boost_headers-*/boost_headers-config.cmake")
+      foreach(__cfg IN LISTS __cfgs)
+        get_filename_component(__dir "${__cfg}" DIRECTORY)
+        file(GLOB __umbrella "${__dir}/../*/BoostConfig.cmake" "${__dir}/../*/boost-config.cmake")
+        if (NOT __umbrella)
+          set(__vgkit_boost_oldkit "${__dir}")
+          break()
+        endif()
+      endforeach()
+      if (__vgkit_boost_oldkit)
+        break()
+      endif()
+    endforeach()
+    if (__vgkit_boost_oldkit)
+      message(FATAL_ERROR "FindOrFetchBoost: found an old kit-fetched Boost at ${__vgkit_boost_oldkit} (per-library CMake configs only, no BoostConfig.cmake); reinstall it, and packages built against it, with the current kit, or point Boost_ROOT/CMAKE_PREFIX_PATH at another Boost")
+    endif()
+    if (NOT Boost_FETCH_IF_MISSING)
+      message(FATAL_ERROR "FindOrFetchBoost: Boost >= ${Boost_OLDEST_BOOST_VERSION} not found; set Boost_ROOT or CMAKE_PREFIX_PATH, or set Boost_FETCH_IF_MISSING=ON to build Boost ${vgkit_boost_fetch_version} as part of the project")
+    endif()
+    set(__vgkit_boost_fetch ON)
+  endif()
+endif()
+
+if (__vgkit_boost_fetch)
+  # TEMPORARY (until Task 2): previous fetch implementation
 set(Boost_ALL_COMPONENTS
         algorithm
         align
@@ -147,124 +262,6 @@ set(Boost_ALL_COMPONENTS
         variant
         variant2
         winapi)
-
-set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;iostreams;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
-
-# converts modular component _comp to list of targets defined by the component
-# target name x means TARGET Boost::x is defined
-macro(component_to_targets _comp _targets)
-    if (${${_comp}} STREQUAL test)
-        set(${_targets} unit_test_framework)
-    else()
-        set(${_targets} ${${_comp}})
-    endif()
-endmacro()
-
-macro(intersection _out _in1 _in2)
-    set(${_out})
-    foreach(x IN LISTS ${_in1})
-        if(x IN_LIST ${_in2})
-            list(APPEND ${_out} ${x})
-        endif()
-    endforeach()
-endmacro()
-
-# elements in _in1 that are not in _in2
-macro(difference _out _in1 _in2)
-    set(${_out})
-    foreach(x IN LISTS ${_in1})
-        if(NOT(x IN_LIST ${_in2}))
-            list(APPEND ${_out} ${x})
-        endif()
-    endforeach()
-endmacro()
-
-# Limit scope of the search if BOOST_ROOT or BOOST_INCLUDEDIR is provided.
-if (BOOST_ROOT OR BOOST_INCLUDEDIR)
-    set(Boost_NO_SYSTEM_PATHS TRUE)
-endif()
-
-intersection(Boost_REQUIRED_COMPONENTS_NONMODULAR Boost_REQUIRED_COMPONENTS Boost_ALL_COMPONENTS_NONMODULAR)
-intersection(Boost_OPTIONAL_COMPONENTS_NONMODULAR Boost_OPTIONAL_COMPONENTS Boost_ALL_COMPONENTS_NONMODULAR)
-# Boost_REQUIRED_COMPONENTS_NONMODULAR may intersect with Boost_OPTIONAL_COMPONENTS_NONMODULAR, exclude those components from Boost_OPTIONAL_COMPONENTS_NONMODULAR
-difference(Boost_OPTIONAL_COMPONENTS_NONMODULAR_NOT_IN_REQUIRES Boost_OPTIONAL_COMPONENTS_NONMODULAR Boost_REQUIRED_COMPONENTS_NONMODULAR)
-set(Boost_OPTIONAL_COMPONENTS_NONMODULAR ${Boost_OPTIONAL_COMPONENTS_NONMODULAR_NOT_IN_REQUIRES})
-
-# detect which Boost targets I already have
-foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (TARGET Boost::${tgt})
-            set(vgck_imported_boost_${tgt} 0)
-        else()
-            set(vgck_imported_boost_${tgt} 1)
-        endif()
-    endforeach()
-endforeach()
-
-# try config first
-# OPTIONAL_COMPONENTS in FindBoost available since 3.11
-cmake_minimum_required(VERSION 3.11.0)
-# if Boost was loaded via config file or have not found Boost yet
-if (DEFINED Boost_CONFIG OR NOT TARGET Boost::headers)
-  find_package(Boost ${Boost_OLDEST_BOOST_VERSION} CONFIG COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-endif()
-if (NOT DEFINED Boost_CONFIG AND NOT TARGET Boost::headers)
-    if(POLICY CMP0167)
-      cmake_policy(SET CMP0167 NEW)
-    endif()
-    find_package(Boost ${Boost_OLDEST_BOOST_VERSION} COMPONENTS ${Boost_REQUIRED_COMPONENTS_NONMODULAR} OPTIONAL_COMPONENTS ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    if (TARGET Boost::headers)
-        set(Boost_USE_CONFIG FALSE)
-    endif(TARGET Boost::headers)
-else()
-    set(Boost_USE_CONFIG TRUE)
-endif()
-
-# Boost::* targets by default are not GLOBAL, so to allow users of LINALG_LIBRARIES to safely use them we need to make them global
-# more discussion here: https://gitlab.kitware.com/cmake/cmake/-/issues/17256
-foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (TARGET Boost::${tgt} AND vgck_imported_boost_${tgt})
-            get_target_property(_boost_tgt_${tgt}_is_imported_global Boost::${tgt} IMPORTED_GLOBAL)
-            if (NOT _boost_tgt_${tgt}_is_imported_global)
-                set_target_properties(Boost::${tgt} PROPERTIES IMPORTED_GLOBAL TRUE)
-            endif()
-            unset(_boost_tgt_${tgt}_is_imported_global)
-        endif()
-    endforeach()
-endforeach()
-
-# detect which components are missing
-set(__missing_nonmodular_boost_components )  # there should not be any if find_package succeeded, i.e. Boost_FOUND is true
-foreach(__comp IN LISTS Boost_REQUIRED_COMPONENTS_NONMODULAR)
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (NOT TARGET Boost::${tgt})
-            list(APPEND __missing_nonmodular_boost_components ${__comp})
-        endif()
-    endforeach()
-endforeach()
-set(__missing_required_modular_boost_components )
-foreach(__comp IN LISTS Boost_REQUIRED_COMPONENTS)
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (NOT TARGET Boost::${tgt})
-            list(APPEND __missing_required_modular_boost_components ${__comp})
-        endif()
-    endforeach()
-endforeach()
-
-# if Boost was loaded via find_package check if have all REQUIRED components
-if (Boost_FOUND)
-    if (__missing_nonmodular_boost_components)
-        message(FATAL_ERROR "Boost was discovered successfully via find_package(Boost) but components \"${__missing_nonmodular_boost_components}\" required by ${PROJECT_NAME} were not found")
-    endif()
-endif()
-
-if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FETCH_IF_MISSING)
-
   message(WARNING "FetchContent'ing Boost")
 
   # Boost can only be build once in a source tree
@@ -384,121 +381,85 @@ if (NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FE
   set(Boost_BUILT_FROM_SOURCE ON)
   set(Boost_IS_MODULARIZED ON)
 
-endif(NOT Boost_FOUND AND __missing_required_modular_boost_components AND Boost_FETCH_IF_MISSING)
+endif(__vgkit_boost_fetch)
 
-# extract components that were found
-set(Boost_FOUND_COMPONENTS_NONMODULAR )
-set(Boost_FOUND_COMPONENTS )
-set(Boost_FOUND_TARGETS_NONMODULAR )
-set(Boost_FOUND_TARGETS )
-foreach(__comp headers ${Boost_REQUIRED_COMPONENTS_NONMODULAR} ${Boost_OPTIONAL_COMPONENTS_NONMODULAR})
+if (Boost_BUILT_FROM_SOURCE)
+  set(__vgkit_boost_missing)
+  foreach(__comp IN LISTS __vgkit_boost_required)
     component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (TARGET Boost::${tgt})
-            list(APPEND Boost_FOUND_COMPONENTS_NONMODULAR ${__comp})
-            list(APPEND Boost_FOUND_TARGETS_NONMODULAR ${tgt})
-        endif()
-    endforeach()
-endforeach()
-list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS_NONMODULAR)
-list(REMOVE_DUPLICATES Boost_FOUND_TARGETS_NONMODULAR)
-foreach(__comp headers ${Boost_REQUIRED_COMPONENTS} ${Boost_OPTIONAL_COMPONENTS})
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (TARGET Boost::${tgt})
-            list(APPEND Boost_FOUND_COMPONENTS ${__comp})
-            list(APPEND Boost_FOUND_TARGETS ${tgt})
-        endif()
-    endforeach()
-endforeach()
-list(REMOVE_DUPLICATES Boost_FOUND_COMPONENTS)
-list(REMOVE_DUPLICATES Boost_FOUND_TARGETS)
-
-# Boost::boost is an alias for Boost::headers defined by boost-config.cmake
-if (Boost_IS_MODULARIZED AND NOT TARGET Boost::boost AND TARGET boost_headers)
-    add_library(Boost::boost ALIAS boost_headers)
-endif()
-
-set(Boost_CONFIG_FILE_CONTENTS
-"
-# converts modular component _comp to list of targets defined by the component
-# target name x means TARGET Boost::x is defined .. this is provided just in case on needs to map components to targets
-macro(component_to_targets _comp _targets)
-    if (\${\${_comp}} STREQUAL test)
-        set(\${_targets} unit_test_framework)
-    else()
-        set(\${_targets} \${\${_comp}})
+    if (NOT TARGET Boost::${__targets})
+      list(APPEND __vgkit_boost_missing ${__comp})
     endif()
-endmacro()
-
-#########################################
-# import boost components, if any missing
-#########################################
-set(Boost_IS_MODULARIZED ${Boost_IS_MODULARIZED})
-if (Boost_IS_MODULARIZED)
-  set(Boost_FOUND_COMPONENTS ${Boost_FOUND_COMPONENTS})
-  set(Boost_FOUND_TARGETS ${Boost_FOUND_TARGETS})
-else(Boost_IS_MODULARIZED)
-  set(Boost_FOUND_COMPONENTS ${Boost_FOUND_COMPONENTS_NONMODULAR})
-  set(Boost_FOUND_TARGETS ${Boost_FOUND_TARGETS_NONMODULAR})
-endif(Boost_IS_MODULARIZED)
-
-set(Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK \"NOT;TARGET;Boost::headers\")
-foreach(_tgt \${Boost_FOUND_TARGETS})
-  list(APPEND Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK \"OR;NOT;TARGET;Boost::\${_tgt}\")
-endforeach(_tgt)
-
-if(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
-  include( CMakeFindDependencyMacro )
-  set(Boost_BUILT_FROM_SOURCE ${Boost_BUILT_FROM_SOURCE})
-  if (NOT Boost_BUILT_FROM_SOURCE)
-    set(Boost_USE_CONFIG ${Boost_USE_CONFIG})
-    # OPTIONAL_COMPONENTS in FindBoost available since 3.11
-    cmake_minimum_required(VERSION 3.11.0)
-    if (Boost_USE_CONFIG)
-      set(Boost_CONFIG ${Boost_CONFIG})
-      if (NOT Boost_CONFIG OR NOT EXISTS \${Boost_CONFIG})
-        message(FATAL_ERROR \"Expected Boost config file at \${Boost_CONFIG}; directory moved since BTAS configuration?\")
-      endif()
-      get_filename_component(Boost_DIR \${Boost_CONFIG} DIRECTORY)
-      find_dependency(Boost REQUIRED OPTIONAL_COMPONENTS \${Boost_FOUND_COMPONENTS} PATHS \${Boost_DIR} NO_DEFAULT_PATH)
-    else (Boost_USE_CONFIG)
-      set(BOOST_INCLUDEDIR ${Boost_INCLUDE_DIR})
-      set(BOOST_LIBRARYDIR ${Boost_LIBRARY_DIR_RELEASE})
-      if (NOT BOOST_LIBRARYDIR OR NOT EXISTS \${BOOST_LIBRARYDIR})
-        set(BOOST_LIBRARYDIR ${Boost_LIBRARY_DIR_DEBUG})
-      endif()
-      set(Boost_NO_SYSTEM_PATHS OFF)
-      if (BOOST_LIBRARYDIR AND BOOST_INCLUDEDIR)
-        if (EXISTS \${BOOST_LIBRARYDIR} AND EXISTS \${BOOST_INCLUDEDIR})
-          set(Boost_NO_SYSTEM_PATHS ON)
-        endif()
-      endif()
-      find_dependency(Boost REQUIRED OPTIONAL_COMPONENTS \${Boost_FOUND_COMPONENTS})
-    endif (Boost_USE_CONFIG)
-  else(NOT Boost_BUILT_FROM_SOURCE)
-    foreach(_tgt IN LISTS Boost_FOUND_TARGETS)
-      if (NOT TARGET Boost::\${_tgt})
-        find_dependency(boost_\${_tgt} CONFIG REQUIRED)
-      endif()
-    endforeach(_tgt)
-  endif(NOT Boost_BUILT_FROM_SOURCE)
-endif(\${Boost_DEPS_LIBRARIES_NOT_FOUND_CHECK})
-
-"
-)
-
-# postcond check
-if (Boost_IS_MODULARIZED)
-    set(__required_components ${Boost_REQUIRED_COMPONENTS})
-else ()
-    set(__required_components ${Boost_REQUIRED_COMPONENTS_NONMODULAR})
+  endforeach()
+  if (__vgkit_boost_missing)
+    message(FATAL_ERROR "FindOrFetchBoost: Boost built from source lacks required component(s) ${__vgkit_boost_missing}; are they excluded via BOOST_EXCLUDE_LIBRARIES?")
+  endif()
+  if (NOT TARGET Boost::boost)
+    add_library(Boost::boost ALIAS boost_headers)
+  endif()
 endif()
-foreach(__comp IN LISTS __required_components)
-    component_to_targets(__comp __targets)
-    foreach(tgt IN LISTS __targets)
-        if (NOT TARGET Boost::${tgt})
-            message(FATAL_ERROR "FindOrFetchBoost: TARGET Boost::${tgt} is required but not available; set Boost_FETCH_IF_MISSING=ON to build Boost as part of the project")
-        endif()
-    endforeach()
+
+# collect found components/targets; make imported targets global so that dependents in other directories can use them
+# (more discussion here: https://gitlab.kitware.com/cmake/cmake/-/issues/17256)
+set(Boost_FOUND_COMPONENTS headers)
+set(Boost_FOUND_TARGETS headers)
+foreach(__comp IN LISTS __vgkit_boost_required __vgkit_boost_optional)
+  component_to_targets(__comp __targets)
+  if (TARGET Boost::${__targets})
+    list(APPEND Boost_FOUND_COMPONENTS ${__comp})
+    list(APPEND Boost_FOUND_TARGETS ${__targets})
+  endif()
 endforeach()
+foreach(__tgt IN LISTS Boost_FOUND_TARGETS)
+  get_target_property(__imported Boost::${__tgt} IMPORTED)
+  if (__imported)
+    get_target_property(__global Boost::${__tgt} IMPORTED_GLOBAL)
+    if (NOT __global)
+      set_target_properties(Boost::${__tgt} PROPERTIES IMPORTED_GLOBAL TRUE)
+    endif()
+  endif()
+endforeach()
+set(Boost_IS_MODULARIZED ON)
+
+set(__vgkit_boost_targets_missing_check "NOT;TARGET;Boost::headers")
+foreach(__tgt IN LISTS Boost_FOUND_TARGETS)
+  list(APPEND __vgkit_boost_targets_missing_check "OR;NOT;TARGET;Boost::${__tgt}")
+endforeach()
+set(__vgkit_boost_found_nonheaders ${Boost_FOUND_COMPONENTS})
+list(REMOVE_ITEM __vgkit_boost_found_nonheaders headers)
+if (Boost_BUILT_FROM_SOURCE)
+  set(__vgkit_boost_found_targets_nonheaders ${Boost_FOUND_TARGETS})
+  list(REMOVE_ITEM __vgkit_boost_found_targets_nonheaders headers)
+  set(Boost_CONFIG_FILE_CONTENTS "
+# import Boost ${vgkit_boost_fetch_version}, built from source and installed along with this package
+if(${__vgkit_boost_targets_missing_check})
+  include(CMakeFindDependencyMacro)
+  find_dependency(Boost ${vgkit_boost_fetch_version} EXACT CONFIG COMPONENTS ${__vgkit_boost_found_targets_nonheaders})
+endif()
+")
+else()
+  set(__vgkit_boost_find_found)
+  foreach(__comp IN LISTS __vgkit_boost_found_nonheaders)
+    if (__comp IN_LIST vgkit_boost_compiled_components)
+      component_to_targets(__comp __targets)
+      list(APPEND __vgkit_boost_find_found ${__targets})
+    endif()
+  endforeach()
+  get_filename_component(__vgkit_boost_config_dir "${Boost_CONFIG}" DIRECTORY)
+  set(Boost_CONFIG_FILE_CONTENTS "
+# import Boost ${Boost_VERSION} found at configure time
+if(${__vgkit_boost_targets_missing_check})
+  include(CMakeFindDependencyMacro)
+  if (NOT EXISTS \"${Boost_CONFIG}\")
+    message(FATAL_ERROR \"Expected Boost config file at ${Boost_CONFIG}; Boost moved since this package was configured?\")
+  endif()
+  find_dependency(Boost ${Boost_VERSION} EXACT CONFIG PATHS \"${__vgkit_boost_config_dir}\" NO_DEFAULT_PATH COMPONENTS ${__vgkit_boost_find_found})
+${_vgkit_boost_helpers}
+  set(_vgkit_boost_missing)
+  vgkit_boost_resolve_components(_vgkit_boost_missing ${__vgkit_boost_found_nonheaders})
+  if (_vgkit_boost_missing)
+    message(FATAL_ERROR \"Boost at ${Boost_CONFIG} lacks component(s) \${_vgkit_boost_missing}\")
+  endif()
+endif()
+")
+endif()

@@ -1,0 +1,78 @@
+# Tests for kit-cmake modules. Each test configures a small project in a fresh binary dir.
+#   cmake -S tests -B build-tests && ctest --test-dir build-tests -L hermetic
+cmake_minimum_required(VERSION 3.25)
+project(kit_cmake_tests NONE)
+enable_testing()
+
+get_filename_component(KIT_DIR "${PROJECT_SOURCE_DIR}/.." ABSOLUTE)
+set(CASES "${PROJECT_SOURCE_DIR}/boost/cases")
+set(FAKES "${PROJECT_SOURCE_DIR}/boost/fake-prefixes")
+# cases hide system/Homebrew/registry packages (after project(), see cases/isolate.cmake) so only the
+# given prefix is visible; list-valued case arguments are comma-separated
+
+# vgkit_boost_case(NAME n SOURCE dir LABEL l [PREFIX p] [BINARY b] [ARGS ...] REGEX re [FAIL_REGEX re] [DEPENDS t])
+function(vgkit_boost_case)
+  cmake_parse_arguments(C "" "NAME;SOURCE;LABEL;PREFIX;BINARY;REGEX;FAIL_REGEX;DEPENDS" "ARGS" ${ARGN})
+  if (NOT C_BINARY)
+    set(C_BINARY "${CMAKE_CURRENT_BINARY_DIR}/${C_NAME}")
+  endif()
+  set(_prefix)
+  if (C_PREFIX)
+    set(_prefix "-DCMAKE_PREFIX_PATH=${FAKES}/${C_PREFIX}")
+  endif()
+  string(REPLACE ";" "," _args "${C_ARGS}")
+  add_test(NAME ${C_NAME}
+           COMMAND ${CMAKE_COMMAND} -S ${CASES}/${C_SOURCE} -B ${C_BINARY}
+                   -Dvg_cmake_kit_SOURCE_DIR=${KIT_DIR} ${_prefix} ${C_ARGS})
+  set_tests_properties(${C_NAME} PROPERTIES LABELS ${C_LABEL} PASS_REGULAR_EXPRESSION "${C_REGEX}")
+  if (C_FAIL_REGEX)
+    set_tests_properties(${C_NAME} PROPERTIES FAIL_REGULAR_EXPRESSION "${C_FAIL_REGEX}")
+  endif()
+  if (C_DEPENDS)
+    set_tests_properties(${C_NAME} PROPERTIES DEPENDS ${C_DEPENDS})
+  endif()
+endfunction()
+
+set(NOFETCH "FetchContent'ing Boost|Fetching Boost")
+
+# --- found: pre-1.92 b2 install; header-only components get shim targets; no fetch
+vgkit_boost_case(NAME found_b2 SOURCE generic LABEL hermetic PREFIX b2-1.83
+  ARGS "-DCASE_REQUIRED=headers,container_hash,numeric_conversion,random" -DCASE_OPTIONAL=serialization
+       -DCASE_FETCH=ON -DCASE_FLOOR=1.81 -DCASE_CHECK_SHIM=ON
+  REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=[^\n]*container_hash[^\n]*numeric_conversion[^\n]*random[^\n]*serialization.*CHECK shim OK"
+  FAIL_REGEX "${NOFETCH}")
+# second configure of the same binary dir gives the same result
+vgkit_boost_case(NAME found_b2_reconfigure SOURCE generic LABEL hermetic PREFIX b2-1.83
+  BINARY ${CMAKE_CURRENT_BINARY_DIR}/found_b2 DEPENDS found_b2
+  ARGS "-DCASE_REQUIRED=headers,container_hash,numeric_conversion,random" -DCASE_OPTIONAL=serialization
+       -DCASE_FETCH=ON -DCASE_FLOOR=1.81 -DCASE_CHECK_SHIM=ON
+  REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=[^\n]*container_hash.*CHECK shim OK"
+  FAIL_REGEX "${NOFETCH}")
+# installed consumer re-finds Boost from the snippet alone (no prefix given)
+vgkit_boost_case(NAME found_b2_downstream SOURCE downstream LABEL hermetic DEPENDS found_b2
+  ARGS -DCASE_SNIPPET=${CMAKE_CURRENT_BINARY_DIR}/found_b2/boost-snippet.cmake
+       "-DCASE_TARGETS=headers,container_hash,numeric_conversion,random,serialization"
+  REGEX "RESULT downstream=OK")
+# fetch disabled, missing optional components are simply absent
+vgkit_boost_case(NAME found_b2_optional_missing SOURCE generic LABEL hermetic PREFIX b2-1.83
+  ARGS -DCASE_REQUIRED=headers "-DCASE_OPTIONAL=container_hash,iostreams" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
+  REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=headers;container_hash\n"
+  FAIL_REGEX "lacks|${NOFETCH}")
+# CMake-harness install lacking a required component: error, never fetch
+vgkit_boost_case(NAME found_cmake_incomplete SOURCE generic LABEL hermetic PREFIX cmake-incomplete-1.90
+  ARGS "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
+  REGEX "lacks[ \n]+required[ \n]+component\\(s\\)[ \n]+container_hash"
+  FAIL_REGEX "${NOFETCH}")
+# install made by the old kit (per-library configs only): error, never fetch
+vgkit_boost_case(NAME found_oldkit SOURCE generic LABEL hermetic PREFIX oldkit-1.84
+  ARGS "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
+  REGEX "old[ \n]+kit-fetched[ \n]+Boost.*boost_headers-1\\.84\\.0.*reinstall"
+  FAIL_REGEX "${NOFETCH}")
+# b2 install older than the floor: plain "not found" (the old-kit probe must not misfire)
+vgkit_boost_case(NAME found_too_old SOURCE generic LABEL hermetic PREFIX b2-1.80
+  ARGS -DCASE_REQUIRED=headers -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
+  REGEX "Boost >= 1\\.81 not[ \n]+found"
+  FAIL_REGEX "lacks|old kit")
+vgkit_boost_case(NAME notfound_nofetch SOURCE generic LABEL hermetic
+  ARGS -DCASE_REQUIRED=headers -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
+  REGEX "Boost >= 1\\.81 not[ \n]+found.*Boost_FETCH_IF_MISSING=ON")
