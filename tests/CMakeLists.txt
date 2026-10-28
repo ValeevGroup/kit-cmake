@@ -92,7 +92,7 @@ vgkit_boost_case(NAME found_cmake_incomplete SOURCE generic LABEL hermetic PREFI
 # install made by the old kit (per-library configs only): error, never fetch
 vgkit_boost_case(NAME found_oldkit SOURCE generic LABEL hermetic PREFIX oldkit-1.84
   ARGS "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
-  REGEX "old[ \n]+kit-fetched[ \n]+Boost.*boost_headers-1\\.84\\.0.*reinstall"
+  REGEX "old[ \n]+kit-fetched[ \n]+Boost.*boost_headers-1\\.84\\.0.*remove"
   FAIL_REGEX "${NOFETCH}")
 # b2 install older than the floor: plain "not found" (the old-kit probe must not misfire)
 vgkit_boost_case(NAME found_too_old SOURCE generic LABEL hermetic PREFIX b2-1.80
@@ -167,3 +167,19 @@ vgkit_boost_case(NAME fetch_shared_downstream SOURCE downstream LABEL fetch DEPE
   ARGS -DCMAKE_PREFIX_PATH=${FSH}/inst -DCASE_SNIPPET=${FSH}/boost-snippet.cmake
        "-DCASE_TARGETS=headers,random,serialization,filesystem,iostreams"
   REGEX "RESULT downstream=OK")
+
+# Boost fetched by a subproject while the top-level project never includes the module
+vgkit_boost_case(NAME fetch_subdir_first SOURCE fetch_subdir_first LABEL fetch
+  REGEX "RESULT sub built=ON modular=ON version=1.92.0")
+
+# a Boost fetched and installed for one package lacks components a later package needs: fetch, do not error
+vgkit_boost_case(NAME fetch_after_partial_install SOURCE generic LABEL fetch DEPENDS fetch_superbuild_install
+  ARGS -DCMAKE_PREFIX_PATH=${FS}/inst "-DCASE_REQUIRED=headers,random,program_options" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
+  REGEX "RESULT built=ON modular=ON version=1.92.0 targets=headers;random;program_options"
+  FAIL_REGEX "lacks")
+
+# old kit-fetched Boost in the prefix this project installs into (rebuilding into the same prefix): warn and
+# build Boost from source, the install supersedes it
+vgkit_boost_case(NAME fetch_over_oldkit_in_install_prefix SOURCE generic LABEL fetch PREFIX oldkit-1.84
+  ARGS -DCMAKE_INSTALL_PREFIX=${FAKES}/oldkit-1.84 "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
+  REGEX "old kit-fetched Boost.*RESULT built=ON modular=ON version=1.92.0")

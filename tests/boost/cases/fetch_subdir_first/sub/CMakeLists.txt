@@ -1,0 +1,6 @@
+project(fofb_subdir_first_sub LANGUAGES CXX)
+set(Boost_REQUIRED_COMPONENTS headers random)
+set(Boost_FETCH_IF_MISSING ON)
+set(Boost_OLDEST_BOOST_VERSION 1.81)
+include(${vg_cmake_kit_SOURCE_DIR}/modules/FindOrFetchBoost.cmake)
+fofb_print_result("RESULT sub")
