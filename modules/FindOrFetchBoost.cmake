@@ -65,8 +65,9 @@ set(vgkit_boost_compiled_components atomic charconv chrono cobalt container cont
     exception fiber filesystem graph graph_parallel iostreams json locale log mpi nowide process program_options
     python random regex serialization system test thread timer type_erasure url wave)
 # compiled libraries whose header-only part is what packages use; distributions package b2-built Boost such that
-# the compiled part may be absent (e.g. Ubuntu's libboost-container-dev), then Boost::X links Boost::headers
-set(vgkit_boost_headeronly_usable_components container)
+# the compiled part may be absent (e.g. Ubuntu's libboost-container-dev, libboost-test-dev), then Boost::X links
+# Boost::headers (Boost.Test is then used via boost/test/included)
+set(vgkit_boost_headeronly_usable_components container test)
 
 macro(vgkit_boost_shim_headeronly _tgt)
   if (NOT TARGET Boost::${_tgt})
