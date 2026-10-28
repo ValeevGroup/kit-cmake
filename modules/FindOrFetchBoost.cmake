@@ -64,6 +64,9 @@ set(_vgkit_boost_helpers [=[
 set(vgkit_boost_compiled_components atomic charconv chrono cobalt container context contract coroutine date_time
     exception fiber filesystem graph graph_parallel iostreams json locale log mpi nowide process program_options
     python random regex serialization system test thread timer type_erasure url wave)
+# compiled libraries whose header-only part is what packages use; distributions package b2-built Boost such that
+# the compiled part may be absent (e.g. Ubuntu's libboost-container-dev), then Boost::X links Boost::headers
+set(vgkit_boost_headeronly_usable_components container)
 
 macro(vgkit_boost_shim_headeronly _tgt)
   if (NOT TARGET Boost::${_tgt})
@@ -96,6 +99,20 @@ function(vgkit_boost_resolve_components _missing)
       if (NOT boost_config_FOUND)
         vgkit_boost_shim_headeronly(${_t})
         continue()
+      endif()
+    elseif (_c IN_LIST vgkit_boost_headeronly_usable_components)
+      find_package(boost_config ${Boost_VERSION} EXACT CONFIG QUIET PATHS "${Boost_DIR}/.." NO_DEFAULT_PATH)
+      if (NOT boost_config_FOUND)
+        get_target_property(_incs Boost::headers INTERFACE_INCLUDE_DIRECTORIES)
+        foreach(_inc IN LISTS _incs)
+          if (IS_DIRECTORY "${_inc}/boost/${_c}")
+            vgkit_boost_shim_headeronly(${_t})
+            break()
+          endif()
+        endforeach()
+        if (TARGET Boost::${_t})
+          continue()
+        endif()
       endif()
     endif()
     list(APPEND _miss ${_c})

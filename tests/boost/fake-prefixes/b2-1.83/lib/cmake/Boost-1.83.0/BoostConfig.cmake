@@ -4,6 +4,8 @@
 set(_fake_compiled random serialization unit_test_framework)
 if(NOT TARGET Boost::headers)
   add_library(Boost::headers INTERFACE IMPORTED)
+  get_filename_component(_fake_inc "${CMAKE_CURRENT_LIST_DIR}/../../../include" ABSOLUTE)
+  set_target_properties(Boost::headers PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_fake_inc}")
 endif()
 if(NOT TARGET Boost::boost)
   add_library(Boost::boost INTERFACE IMPORTED)

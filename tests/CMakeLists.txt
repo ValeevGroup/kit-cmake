@@ -66,6 +66,16 @@ vgkit_boost_case(NAME found_b2_optional_missing SOURCE generic LABEL hermetic PR
   ARGS -DCASE_REQUIRED=headers "-DCASE_OPTIONAL=container_hash,iostreams" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
   REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=headers;container_hash\n"
   FAIL_REGEX "lacks|${NOFETCH}")
+# b2 install packaged without the compiled part of Boost.Container (e.g. Ubuntu without libboost-container-dev):
+# its header-only part is usable, so Boost::container -> Boost::headers
+vgkit_boost_case(NAME found_b2_container_headers SOURCE generic LABEL hermetic PREFIX b2-1.83
+  ARGS "-DCASE_REQUIRED=headers,container" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
+  REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=headers;container\n")
+# ... but other missing compiled libraries of a b2 install are an error
+vgkit_boost_case(NAME found_b2_compiled_missing SOURCE generic LABEL hermetic PREFIX b2-1.83
+  ARGS "-DCASE_REQUIRED=headers,regex" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
+  REGEX "lacks[ \n]+required[ \n]+component\\(s\\)[ \n]+regex"
+  FAIL_REGEX "${NOFETCH}")
 # CMake-harness install lacking a required component: error, never fetch
 vgkit_boost_case(NAME found_cmake_incomplete SOURCE generic LABEL hermetic PREFIX cmake-incomplete-1.90
   ARGS "-DCASE_REQUIRED=headers,container_hash" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
