@@ -1,0 +1,11 @@
+# the top project fetches Boost asking for little; a subproject then asks for more
+cmake_minimum_required(VERSION 3.25)
+project(fofb_superbuild LANGUAGES CXX)
+include(${CMAKE_CURRENT_LIST_DIR}/../isolate.cmake)
+set(Boost_REQUIRED_COMPONENTS headers algorithm)
+set(Boost_FETCH_IF_MISSING ON)
+set(Boost_OLDEST_BOOST_VERSION 1.81)
+include(${vg_cmake_kit_SOURCE_DIR}/modules/FindOrFetchBoost.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../result.cmake)
+fofb_print_result("RESULT top")
+add_subdirectory(sub)

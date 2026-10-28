@@ -25,6 +25,14 @@ function(vgkit_boost_case)
            COMMAND ${CMAKE_COMMAND} -S ${CASES}/${C_SOURCE} -B ${C_BINARY}
                    -Dvg_cmake_kit_SOURCE_DIR=${KIT_DIR} ${_prefix} ${C_ARGS})
   set_tests_properties(${C_NAME} PROPERTIES LABELS ${C_LABEL} PASS_REGULAR_EXPRESSION "${C_REGEX}")
+  # PASS_REGULAR_EXPRESSION ignores the exit code: cases expected to succeed must also not report errors
+  if (C_REGEX MATCHES "RESULT")
+    if (C_FAIL_REGEX)
+      set(C_FAIL_REGEX "CMake Error|${C_FAIL_REGEX}")
+    else()
+      set(C_FAIL_REGEX "CMake Error")
+    endif()
+  endif()
   if (C_FAIL_REGEX)
     set_tests_properties(${C_NAME} PROPERTIES FAIL_REGULAR_EXPRESSION "${C_FAIL_REGEX}")
   endif()
@@ -76,3 +84,39 @@ vgkit_boost_case(NAME found_too_old SOURCE generic LABEL hermetic PREFIX b2-1.80
 vgkit_boost_case(NAME notfound_nofetch SOURCE generic LABEL hermetic
   ARGS -DCASE_REQUIRED=headers -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
   REGEX "Boost >= 1\\.81 not[ \n]+found.*Boost_FETCH_IF_MISSING=ON")
+
+# --- fetched (slow: downloads and builds Boost)
+set(FB ${CMAKE_CURRENT_BINARY_DIR}/fetch_basic)
+vgkit_boost_case(NAME fetch_basic SOURCE fetch_basic LABEL fetch
+  REGEX "RESULT built=ON modular=ON version=1.92.0 targets=[^\n]*spirit")
+add_test(NAME fetch_basic_build COMMAND ${CMAKE_COMMAND} --build ${FB} --parallel 6)
+add_test(NAME fetch_basic_run COMMAND ${FB}/fofb_main)
+add_test(NAME fetch_basic_install COMMAND ${CMAKE_COMMAND} --install ${FB} --prefix ${FB}/inst)
+add_test(NAME fetch_basic_installed_files COMMAND ${CMAKE_COMMAND}
+  "-DGLOBS=${FB}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FB}/inst/lib/*boost_filesystem*,${FB}/inst/lib/*boost_serialization*,${FB}/inst/lib/*boost_unit_test_framework*,${FB}/inst/lib/*boost_iostreams*"
+  -P ${PROJECT_SOURCE_DIR}/boost/check_files.cmake)
+set_tests_properties(fetch_basic_build fetch_basic_run fetch_basic_install fetch_basic_installed_files PROPERTIES LABELS fetch)
+set_tests_properties(fetch_basic_build PROPERTIES DEPENDS fetch_basic)
+set_tests_properties(fetch_basic_run fetch_basic_install PROPERTIES DEPENDS fetch_basic_build)
+set_tests_properties(fetch_basic_installed_files PROPERTIES DEPENDS fetch_basic_install PASS_REGULAR_EXPRESSION "RESULT files=OK")
+# installed consumer re-finds the installed Boost from the snippet
+vgkit_boost_case(NAME fetch_downstream SOURCE downstream LABEL fetch DEPENDS fetch_basic_install
+  ARGS -DCMAKE_PREFIX_PATH=${FB}/inst -DCASE_SNIPPET=${FB}/boost-snippet.cmake
+       "-DCASE_TARGETS=headers,container_hash,spirit,unit_test_framework,iostreams"
+  REGEX "RESULT downstream=OK")
+vgkit_boost_case(NAME fetch_superbuild SOURCE fetch_superbuild LABEL fetch
+  REGEX "RESULT top built=ON[^\n]*version=1.92.0.*RESULT sub built=ON[^\n]*random[^\n]*serialization[^\n]*unit_test_framework[^\n]*callable_traits"
+  FAIL_REGEX "already")
+vgkit_boost_case(NAME fetch_superbuild_reconfigure SOURCE fetch_superbuild LABEL fetch DEPENDS fetch_superbuild
+  REGEX "RESULT sub built=ON[^\n]*callable_traits" FAIL_REGEX "already")
+# libraries requested only by the subproject are built and installed too
+set(FS ${CMAKE_CURRENT_BINARY_DIR}/fetch_superbuild)
+add_test(NAME fetch_superbuild_build COMMAND ${CMAKE_COMMAND} --build ${FS} --parallel 6)
+add_test(NAME fetch_superbuild_install COMMAND ${CMAKE_COMMAND} --install ${FS} --prefix ${FS}/inst)
+add_test(NAME fetch_superbuild_installed_files COMMAND ${CMAKE_COMMAND}
+  "-DGLOBS=${FS}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FS}/inst/lib/cmake/boost_callable_traits-1.92.0/*,${FS}/inst/lib/*boost_serialization*,${FS}/inst/lib/*boost_unit_test_framework*,${FS}/inst/include/boost/algorithm/string.hpp"
+  -P ${PROJECT_SOURCE_DIR}/boost/check_files.cmake)
+set_tests_properties(fetch_superbuild_build fetch_superbuild_install fetch_superbuild_installed_files PROPERTIES LABELS fetch)
+set_tests_properties(fetch_superbuild_build PROPERTIES DEPENDS fetch_superbuild_reconfigure)
+set_tests_properties(fetch_superbuild_install PROPERTIES DEPENDS fetch_superbuild_build)
+set_tests_properties(fetch_superbuild_installed_files PROPERTIES DEPENDS fetch_superbuild_install PASS_REGULAR_EXPRESSION "RESULT files=OK")

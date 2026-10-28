@@ -36,16 +36,15 @@
 # Boost_IS_MODULARIZED: ON; target Boost::X exists for every found component X
 # Boost_FOUND_COMPONENTS: list of components that were found
 # Boost_FOUND_TARGETS: list of targets (X in Boost::X) that were found
-# Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL: CACHE variable containing the list of targets that
-#   are not built automatically when the "install" target is built; if Boost_BUILT_FROM_SOURCE is ON,
-#   for each target X in this list user will want to add an artificial dependence of their target(s)
-#   on target boost_X
+# Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL: CACHE variable, now always empty (all installed Boost libraries are
+#   built by the default target); kept for compatibility
 # Boost_CONFIG_FILE_CONTENTS: CMake code to paste into the package config file of the project, imports the same Boost
 
 set(vgkit_boost_fetch_version 1.92.0)
 set(vgkit_boost_fetch_sha256 9bed76128d4e46755dbe818487788c6fceb6f72b378f4daa49b7e1e600d9088d)
 
-set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "filesystem;iostreams;unit_test_framework" CACHE STRING "list of Boost targets not built by install target")
+# kept for compatibility; the installed Boost targets are now built by the default target
+set(Boost_MODULAR_TARGETS_NOT_BUILT_BY_INSTALL "" CACHE STRING "list of Boost targets not built by install target" FORCE)
 
 # converts component _comp to list of targets defined by the component
 # target name x means TARGET Boost::x is defined
@@ -105,6 +104,9 @@ function(vgkit_boost_resolve_components _missing)
 endfunction()
 ]=])
 cmake_language(EVAL CODE "${_vgkit_boost_helpers}")
+
+# per-invocation state (an invocation in a subproject inherits the variables of its parent's invocation)
+unset(__vgkit_boost_fetch)
 
 # requested components, sans headers (always required)
 set(__vgkit_boost_required ${Boost_REQUIRED_COMPONENTS})
@@ -182,208 +184,109 @@ if (NOT Boost_BUILT_FROM_SOURCE)
   endif()
 endif()
 
-if (__vgkit_boost_fetch)
-  # TEMPORARY (until Task 2): previous fetch implementation
-set(Boost_ALL_COMPONENTS
-        algorithm
-        align
-        any
-        atomic
-        array
-        assert
-        bind
-        chrono
-        circular_buffer
-        compute
-        concept_check
-        config
-        container
-        container_hash
-        conversion
-        core
-        date_time
-        describe
-        detail
-        dynamic_bitset
-        endian
-        exception
-        filesystem
-        function
-        functional
-        function_types
-        fusion
-        headers
-        integer
-        intrusive
-        io
-        iostreams
-        iterator
-        lexical_cast
-        logic
-        math
-        move
-        mp11
-        mpl
-        multiprecision
-        multi_index
-        numeric_conversion
-        numeric_interval
-        #numeric_odeint
-        numeric_ublas
-        optional
-        parameter
-        phoenix
-        pool
-        predef
-        preprocessor
-        property_tree
-        proto
-        random
-        range
-        ratio
-        regex
-        serialization
-        smart_ptr
-        spirit
-        static_assert
-        system
-        test
-        thread
-        throw_exception
-        tokenizer
-        tti
-        tuple
-        typeof
-        type_index
-        type_traits
-        unordered
-        utility
-        uuid
-        variant
-        variant2
-        winapi)
-  message(WARNING "FetchContent'ing Boost")
+# Boost added via FetchContent with EXCLUDE_FROM_ALL contributes no install rules, and installing all of it would
+# require building every compiled library. Hence, at the end of configuring the top-level project, install (with
+# Boost's own boost_install) the libraries requested by all FindOrFetchBoost invocations plus their Boost
+# dependencies, and make sure that these are built by the default target.
+function(__vgkit_boost_install)
+  get_property(_comps GLOBAL PROPERTY VGKIT_BOOST_INSTALL_COMPONENTS)
+  set(_todo boost_headers)
+  foreach(_c IN LISTS _comps)
+    component_to_targets(_c _t)
+    list(APPEND _todo boost_${_t})
+  endforeach()
+  set(_closure)
+  while(_todo)
+    list(POP_FRONT _todo _tgt)
+    if (_tgt IN_LIST _closure OR NOT TARGET ${_tgt})
+      continue()
+    endif()
+    list(APPEND _closure ${_tgt})
+    get_target_property(_deps ${_tgt} INTERFACE_LINK_LIBRARIES)
+    string(REGEX MATCHALL "Boost::[A-Za-z0-9_]+" _deps "${_deps}")
+    foreach(_d IN LISTS _deps)
+      if (TARGET ${_d})
+        get_target_property(_real ${_d} ALIASED_TARGET)
+        if (NOT _real)
+          set(_real ${_d})
+        endif()
+        list(APPEND _todo ${_real})
+      endif()
+    endforeach()
+  endwhile()
 
-  # Boost can only be build once in a source tree
-  if (Boost_POPULATED)
-      message(FATAL_ERROR "Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but someone already build Boost via FetchContent with components \"${__missing_required_modular_boost_components}\" required by this project are missing; add these components to the original FetchContent stanza")
+  FetchContent_GetProperties(Boost SOURCE_DIR _src)
+  set(BOOST_SKIP_INSTALL_RULES OFF)
+  set(BOOST_SUPERPROJECT_SOURCE_DIR "${_src}")
+  string(REPLACE "." ";" _v "${vgkit_boost_fetch_version}")
+  list(GET _v 0 PROJECT_VERSION_MAJOR)
+  list(GET _v 1 PROJECT_VERSION_MINOR)
+  set(PROJECT_VERSION ${vgkit_boost_fetch_version})  # used by boost_install for version files; local to this function
+  list(APPEND CMAKE_MODULE_PATH "${_src}/tools/cmake/include")
+  include("${_src}/tools/cmake/include/BoostInstall.cmake")
+  foreach(_tgt IN LISTS _closure)
+    get_target_property(_type ${_tgt} TYPE)
+    if (NOT _type STREQUAL "INTERFACE_LIBRARY")
+      set_property(TARGET ${_tgt} PROPERTY EXCLUDE_FROM_ALL OFF)
+    endif()
+    get_target_property(_dir ${_tgt} SOURCE_DIR)
+    if (IS_DIRECTORY "${_dir}/include")
+      boost_install(TARGETS ${_tgt} VERSION ${vgkit_boost_fetch_version} HEADER_DIRECTORY "${_dir}/include")
+    else()
+      boost_install(TARGETS ${_tgt} VERSION ${vgkit_boost_fetch_version})
+    endif()
+  endforeach()
+  # as done by Boost's BoostRoot.cmake when Boost is the top-level project
+  set(_cfgdir "${BOOST_INSTALL_CMAKEDIR}/Boost-${vgkit_boost_fetch_version}")
+  install(FILES "${_src}/tools/cmake/config/BoostConfig.cmake" DESTINATION "${_cfgdir}")
+  write_basic_package_version_file("${CMAKE_BINARY_DIR}/vgkit-boost/BoostConfigVersion.cmake"
+          VERSION ${vgkit_boost_fetch_version} COMPATIBILITY SameMajorVersion ARCH_INDEPENDENT)
+  install(FILES "${CMAKE_BINARY_DIR}/vgkit-boost/BoostConfigVersion.cmake" DESTINATION "${_cfgdir}")
+endfunction()
+
+if (__vgkit_boost_fetch)
+  message(STATUS "FindOrFetchBoost: Boost not found, building Boost ${vgkit_boost_fetch_version} from source")
+  if (CMAKE_VERSION VERSION_LESS 3.25.0)  # for FetchContent's SYSTEM option
+    message(FATAL_ERROR "FindOrFetchBoost: building Boost from source requires CMake 3.25 or later")
   endif()
 
-  include (FetchContent)
-  cmake_minimum_required (VERSION 3.25.0)  # for ExternalProject_add's SYSTEM option
+  include(FetchContent)
+  # Boost can only be built once in a build tree
+  FetchContent_GetProperties(Boost)
+  if (Boost_POPULATED)
+    message(FATAL_ERROR "FindOrFetchBoost: Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but Boost was already populated via FetchContent without being added to the build")
+  endif()
 
-  set(BOOST_SUPERPROJECT_VERSION 1.84.0)
   FetchContent_Declare(
           Boost
-          URL https://github.com/boostorg/boost/releases/download/boost-${BOOST_SUPERPROJECT_VERSION}/boost-${BOOST_SUPERPROJECT_VERSION}.tar.xz
-          URL_HASH MD5=893b5203b862eb9bbd08553e24ff146a
+          URL https://github.com/boostorg/boost/releases/download/boost-${vgkit_boost_fetch_version}/boost-${vgkit_boost_fetch_version}-cmake.tar.xz
+          URL_HASH SHA256=${vgkit_boost_fetch_sha256}
           DOWNLOAD_EXTRACT_TIMESTAMP ON
           EXCLUDE_FROM_ALL
           SYSTEM
   )
 
-  if (NOT DEFINED BOOST_INCLUDE_LIBRARIES)
-      set(BOOST_INCLUDE_LIBRARIES headers)
-  else()
-      list(APPEND BOOST_INCLUDE_LIBRARIES headers)
-  endif()
-  if (DEFINED Boost_REQUIRED_COMPONENTS)
-      list(APPEND BOOST_INCLUDE_LIBRARIES ${Boost_REQUIRED_COMPONENTS})
-  endif()
-  if (DEFINED Boost_OPTIONAL_COMPONENTS)
-      list(APPEND BOOST_INCLUDE_LIBRARIES ${Boost_OPTIONAL_COMPONENTS})
-  endif()
-  list(REMOVE_DUPLICATES BOOST_INCLUDE_LIBRARIES)
-  message(WARNING "FetchContent Boost package with the following components: ${BOOST_INCLUDE_LIBRARIES}")
-  # for now build everything
-  set(BOOST_INCLUDE_LIBRARIES_CURRENT ${BOOST_INCLUDE_LIBRARIES})
+  # configure all of Boost (minus BOOST_EXCLUDE_LIBRARIES): in a superbuild projects added later may need
+  # libraries the first one did not ask for, and Boost can be added only once; libraries are built only if used
+  set(__vgkit_boost_include_libraries "${BOOST_INCLUDE_LIBRARIES}")
   unset(BOOST_INCLUDE_LIBRARIES)
+  FetchContent_MakeAvailable(Boost)
+  set(BOOST_INCLUDE_LIBRARIES "${__vgkit_boost_include_libraries}")
+  cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" ID vgkit_boost_install CALL __vgkit_boost_install)
 
-  FetchContent_GetProperties(Boost)
-
-  if(NOT Boost_POPULATED)
-
-    message(STATUS "Fetching Boost")
-    FetchContent_MakeAvailable(Boost)
-    message(STATUS "Fetching Boost done")
-
-    # unity build not supported for some Boost libraries
-    foreach (unity_broken_lib locale serialization)
-      if (TARGET boost_${unity_broken_lib})
-        message(STATUS "Will disable unity-build for boost_${unity_broken_lib}")
-        set_property(TARGET boost_${unity_broken_lib} PROPERTY UNITY_BUILD OFF)
-      endif()
-    endforeach()
-
-  endif()
-
-  # TODO figure out how to deduce the list of dependent components
-  # for now just use all of them, i.e. Boost_ALL_COMPONENTS
-  set(BOOST_INCLUDE_LIBRARIES ${BOOST_INCLUDE_LIBRARIES_CURRENT})
-  set(BOOST_INCLUDE_LIBRARIES_FULL "headers;${BOOST_INCLUDE_LIBRARIES};${Boost_ALL_COMPONENTS}")
-  list(REMOVE_DUPLICATES BOOST_INCLUDE_LIBRARIES_FULL)
-  if (DEFINED BOOST_EXCLUDE_LIBRARIES)
-    list(REMOVE_ITEM BOOST_INCLUDE_LIBRARIES_FULL ${BOOST_EXCLUDE_LIBRARIES})
-  endif()
-
-  # Boost install is only enabled when Boost is the top-level project, and there is no way to override
-  # this, so here we invoke boost_install commands ourselves; this requires setting some variables that are set
-  # by BoostRoot.cmake
-  set(BOOST_SKIP_INSTALL_RULES OFF)
-  set(BOOST_SUPERPROJECT_SOURCE_DIR "${Boost_SOURCE_DIR}")
-  set(BOOST_INSTALL_CMAKEDIR "lib/cmake")
-  if (DEFINED PROJECT_VERSION)
-      set(ACTUAL_PROJECT_VERSION ${PROJECT_VERSION})
-  endif(DEFINED PROJECT_VERSION)
-  set(PROJECT_VERSION ${BOOST_SUPERPROJECT_VERSION})
-  foreach(lib IN LISTS BOOST_INCLUDE_LIBRARIES_FULL)
-
-      # deduce the location of headers ... for some libraries it does not match the basic pattern
-      set(__HEADER_DIRECTORY "${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/${lib}/include")
-      if (lib STREQUAL numeric_conversion)
-          set(__HEADER_DIRECTORY ${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/numeric/conversion/include)
-      endif()
-      if (lib STREQUAL numeric_interval)
-          set(__HEADER_DIRECTORY ${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/numeric/interval/include)
-      endif()
-      if (lib STREQUAL numeric_odeint)
-          set(__HEADER_DIRECTORY ${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/numeric/odeint/include)
-      endif()
-      if (lib STREQUAL numeric_ublas)
-          set(__HEADER_DIRECTORY ${BOOST_SUPERPROJECT_SOURCE_DIR}/libs/numeric/ublas/include)
-      endif()
-
-      # convert the list of components to a list of targets
-      component_to_targets(lib __lib_targets)
-      # convert target T to boost_T
-      set(__lib_targets_w_boost_prepended )
-      foreach(__target IN LISTS __lib_targets)
-          list(APPEND __lib_targets_w_boost_prepended boost_${__target})
-      endforeach()
-
-      boost_install(TARGETS "${__lib_targets_w_boost_prepended}" VERSION "${BOOST_SUPERPROJECT_VERSION}" HEADER_DIRECTORY "${__HEADER_DIRECTORY}")
-
-      # Create the targets file in build tree also
-      foreach(__target IN LISTS __lib_targets_w_boost_prepended)
-          export(EXPORT ${__target}-targets
-                 NAMESPACE Boost::
-                 FILE "${PROJECT_BINARY_DIR}/${__target}-targets.cmake")
-      endforeach()
+  # unity build not supported for some Boost libraries
+  foreach (unity_broken_lib locale serialization)
+    if (TARGET boost_${unity_broken_lib})
+      set_property(TARGET boost_${unity_broken_lib} PROPERTY UNITY_BUILD OFF)
+    endif()
   endforeach()
 
-  if (DEFINED ACTUAL_PROJECT_VERSION)
-      set(PROJECT_VERSION ${ACTUAL_PROJECT_VERSION})
-  else(DEFINED ACTUAL_PROJECT_VERSION)
-      unset(PROJECT_VERSION)
-  endif(DEFINED ACTUAL_PROJECT_VERSION)
-
-  # result
   set(Boost_BUILT_FROM_SOURCE ON)
-  set(Boost_IS_MODULARIZED ON)
-
 endif(__vgkit_boost_fetch)
 
 if (Boost_BUILT_FROM_SOURCE)
+  set(Boost_VERSION ${vgkit_boost_fetch_version})
+  set(Boost_USE_CONFIG OFF)
   set(__vgkit_boost_missing)
   foreach(__comp IN LISTS __vgkit_boost_required)
     component_to_targets(__comp __targets)
@@ -391,6 +294,7 @@ if (Boost_BUILT_FROM_SOURCE)
       list(APPEND __vgkit_boost_missing ${__comp})
     endif()
   endforeach()
+  set_property(GLOBAL APPEND PROPERTY VGKIT_BOOST_INSTALL_COMPONENTS ${__vgkit_boost_required} ${__vgkit_boost_optional})
   if (__vgkit_boost_missing)
     message(FATAL_ERROR "FindOrFetchBoost: Boost built from source lacks required component(s) ${__vgkit_boost_missing}; are they excluded via BOOST_EXCLUDE_LIBRARIES?")
   endif()
