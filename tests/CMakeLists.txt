@@ -131,3 +131,17 @@ vgkit_boost_case(NAME system_boost SOURCE system_boost LABEL system ARGS ${_syst
 set_tests_properties(system_boost PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP: no system Boost")
 add_test(NAME system_boost_build COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/system_boost)
 set_tests_properties(system_boost_build PROPERTIES LABELS system DEPENDS system_boost)
+
+# shared Boost libraries: their installed configs also require their private (LINK_LIBRARIES) Boost dependencies
+set(FSH ${CMAKE_CURRENT_BINARY_DIR}/fetch_shared)
+vgkit_boost_case(NAME fetch_shared SOURCE fetch_basic LABEL fetch ARGS -DBUILD_SHARED_LIBS=ON
+  REGEX "RESULT built=ON modular=ON version=1.92.0")
+add_test(NAME fetch_shared_build COMMAND ${CMAKE_COMMAND} --build ${FSH} --parallel 6)
+add_test(NAME fetch_shared_install COMMAND ${CMAKE_COMMAND} --install ${FSH} --prefix ${FSH}/inst)
+set_tests_properties(fetch_shared_build fetch_shared_install PROPERTIES LABELS fetch)
+set_tests_properties(fetch_shared_build PROPERTIES DEPENDS fetch_shared)
+set_tests_properties(fetch_shared_install PROPERTIES DEPENDS fetch_shared_build)
+vgkit_boost_case(NAME fetch_shared_downstream SOURCE downstream LABEL fetch DEPENDS fetch_shared_install
+  ARGS -DCMAKE_PREFIX_PATH=${FSH}/inst -DCASE_SNIPPET=${FSH}/boost-snippet.cmake
+       "-DCASE_TARGETS=headers,random,serialization,filesystem,iostreams"
+  REGEX "RESULT downstream=OK")
