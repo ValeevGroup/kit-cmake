@@ -111,11 +111,11 @@ vgkit_boost_case(NAME notfound_nofetch SOURCE generic LABEL hermetic
 set(FB ${CMAKE_CURRENT_BINARY_DIR}/fetch_basic)
 vgkit_boost_case(NAME fetch_basic SOURCE fetch_basic LABEL fetch
   REGEX "RESULT built=ON modular=ON version=1.92.0 targets=[^\n]*spirit")
-add_test(NAME fetch_basic_build COMMAND ${CMAKE_COMMAND} --build ${FB} --parallel 6)
+add_test(NAME fetch_basic_build COMMAND ${CMAKE_COMMAND} --build ${FB} --config Release --parallel 6)
 add_test(NAME fetch_basic_run COMMAND ${FB}/fofb_main)
-add_test(NAME fetch_basic_install COMMAND ${CMAKE_COMMAND} --install ${FB} --prefix ${FB}/inst)
+add_test(NAME fetch_basic_install COMMAND ${CMAKE_COMMAND} --install ${FB} --config Release --prefix ${FB}/inst)
 add_test(NAME fetch_basic_installed_files COMMAND ${CMAKE_COMMAND}
-  "-DGLOBS=${FB}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FB}/inst/lib/*boost_filesystem*,${FB}/inst/lib/*boost_serialization*,${FB}/inst/lib/*boost_unit_test_framework*,${FB}/inst/lib/*boost_iostreams*"
+  "-DGLOBS=${FB}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FB}/inst/lib/*boost_filesystem*,${FB}/inst/lib/*boost_serialization*,${FB}/inst/lib/*boost_unit_test_framework*,${FB}/inst/lib/*boost_iostreams*,${FB}/inst/share/boost-1.92.0/assert/boost_assert.natvis"
   -P ${PROJECT_SOURCE_DIR}/boost/check_files.cmake)
 set_tests_properties(fetch_basic_build fetch_basic_run fetch_basic_install fetch_basic_installed_files PROPERTIES LABELS fetch)
 set_tests_properties(fetch_basic_build PROPERTIES DEPENDS fetch_basic)
@@ -133,8 +133,8 @@ vgkit_boost_case(NAME fetch_superbuild_reconfigure SOURCE fetch_superbuild LABEL
   REGEX "RESULT sub built=ON[^\n]*callable_traits" FAIL_REGEX "already")
 # libraries requested only by the subproject are built and installed too
 set(FS ${CMAKE_CURRENT_BINARY_DIR}/fetch_superbuild)
-add_test(NAME fetch_superbuild_build COMMAND ${CMAKE_COMMAND} --build ${FS} --parallel 6)
-add_test(NAME fetch_superbuild_install COMMAND ${CMAKE_COMMAND} --install ${FS} --prefix ${FS}/inst)
+add_test(NAME fetch_superbuild_build COMMAND ${CMAKE_COMMAND} --build ${FS} --config Release --parallel 6)
+add_test(NAME fetch_superbuild_install COMMAND ${CMAKE_COMMAND} --install ${FS} --config Release --prefix ${FS}/inst)
 add_test(NAME fetch_superbuild_installed_files COMMAND ${CMAKE_COMMAND}
   "-DGLOBS=${FS}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FS}/inst/lib/cmake/boost_callable_traits-1.92.0/*,${FS}/inst/lib/*boost_serialization*,${FS}/inst/lib/*boost_unit_test_framework*,${FS}/inst/include/boost/algorithm/string.hpp"
   -P ${PROJECT_SOURCE_DIR}/boost/check_files.cmake)
@@ -151,15 +151,15 @@ endif()
 vgkit_boost_case(NAME system_boost SOURCE system_boost LABEL system ARGS ${_system_args}
   REGEX "RESULT built=OFF modular=ON version=[0-9.]+ targets=[^\n]*container_hash[^\n]*numeric_conversion")
 set_tests_properties(system_boost PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP: no system Boost")
-add_test(NAME system_boost_build COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/system_boost)
+add_test(NAME system_boost_build COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/system_boost --config Release)
 set_tests_properties(system_boost_build PROPERTIES LABELS system DEPENDS system_boost)
 
 # shared Boost libraries: their installed configs also require their private (LINK_LIBRARIES) Boost dependencies
 set(FSH ${CMAKE_CURRENT_BINARY_DIR}/fetch_shared)
 vgkit_boost_case(NAME fetch_shared SOURCE fetch_basic LABEL fetch ARGS -DBUILD_SHARED_LIBS=ON
   REGEX "RESULT built=ON modular=ON version=1.92.0")
-add_test(NAME fetch_shared_build COMMAND ${CMAKE_COMMAND} --build ${FSH} --parallel 6)
-add_test(NAME fetch_shared_install COMMAND ${CMAKE_COMMAND} --install ${FSH} --prefix ${FSH}/inst)
+add_test(NAME fetch_shared_build COMMAND ${CMAKE_COMMAND} --build ${FSH} --config Release --parallel 6)
+add_test(NAME fetch_shared_install COMMAND ${CMAKE_COMMAND} --install ${FSH} --config Release --prefix ${FSH}/inst)
 set_tests_properties(fetch_shared_build fetch_shared_install PROPERTIES LABELS fetch)
 set_tests_properties(fetch_shared_build PROPERTIES DEPENDS fetch_shared)
 set_tests_properties(fetch_shared_install PROPERTIES DEPENDS fetch_shared_build)
