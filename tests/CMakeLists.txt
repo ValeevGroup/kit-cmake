@@ -71,6 +71,11 @@ vgkit_boost_case(NAME found_b2_optional_missing SOURCE generic LABEL hermetic PR
 vgkit_boost_case(NAME found_b2_container_headers SOURCE generic LABEL hermetic PREFIX b2-1.83
   ARGS "-DCASE_REQUIRED=headers,container" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
   REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=headers;container\n")
+# ... and an installed consumer re-finds that Boost (container is not asked of the b2 config as a required component)
+vgkit_boost_case(NAME found_b2_container_downstream SOURCE downstream LABEL hermetic DEPENDS found_b2_container_headers
+  ARGS -DCASE_SNIPPET=${CMAKE_CURRENT_BINARY_DIR}/found_b2_container_headers/boost-snippet.cmake
+       "-DCASE_TARGETS=headers,container"
+  REGEX "RESULT downstream=OK")
 # ... but other missing compiled libraries of a b2 install are an error
 vgkit_boost_case(NAME found_b2_compiled_missing SOURCE generic LABEL hermetic PREFIX b2-1.83
   ARGS "-DCASE_REQUIRED=headers,regex" -DCASE_FETCH=ON -DCASE_FLOOR=1.81
@@ -94,6 +99,10 @@ vgkit_boost_case(NAME found_too_old SOURCE generic LABEL hermetic PREFIX b2-1.80
   ARGS -DCASE_REQUIRED=headers -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
   REGEX "Boost >= 1\\.81 not[ \n]+found"
   FAIL_REGEX "lacks|old kit")
+# all components optional (TTG with TTG_FETCH_BOOST=OFF) and no Boost: continue without Boost
+vgkit_boost_case(NAME notfound_all_optional SOURCE generic LABEL hermetic
+  ARGS "-DCASE_OPTIONAL=callable_traits,serialization" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
+  REGEX "RESULT built=OFF modular=OFF version= targets=\n")
 vgkit_boost_case(NAME notfound_nofetch SOURCE generic LABEL hermetic
   ARGS -DCASE_REQUIRED=headers -DCASE_FETCH=OFF -DCASE_FLOOR=1.81
   REGEX "Boost >= 1\\.81 not[ \n]+found.*Boost_FETCH_IF_MISSING=ON")
