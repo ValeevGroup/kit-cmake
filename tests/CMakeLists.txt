@@ -76,6 +76,14 @@ vgkit_boost_case(NAME found_b2_container_downstream SOURCE downstream LABEL herm
   ARGS -DCASE_SNIPPET=${CMAKE_CURRENT_BINARY_DIR}/found_b2_container_headers/boost-snippet.cmake
        "-DCASE_TARGETS=headers,container"
   REGEX "RESULT downstream=OK")
+# ... likewise Boost.Test, usable header-only via boost/test/included (e.g. Ubuntu without libboost-test-dev)
+vgkit_boost_case(NAME found_b2_test_headers SOURCE generic LABEL hermetic PREFIX b2-1.83
+  ARGS "-DCASE_REQUIRED=headers,test" -DCASE_FETCH=OFF -DCASE_FLOOR=1.81 -DFAKE_B2_ABSENT=unit_test_framework
+  REGEX "RESULT built=OFF modular=ON version=1.83.0 targets=headers;unit_test_framework\n")
+vgkit_boost_case(NAME found_b2_test_downstream SOURCE downstream LABEL hermetic DEPENDS found_b2_test_headers
+  ARGS -DCASE_SNIPPET=${CMAKE_CURRENT_BINARY_DIR}/found_b2_test_headers/boost-snippet.cmake
+       "-DCASE_TARGETS=headers,unit_test_framework" -DFAKE_B2_ABSENT=unit_test_framework
+  REGEX "RESULT downstream=OK")
 # ... but other missing compiled libraries of a b2 install are an error
 vgkit_boost_case(NAME found_b2_compiled_missing SOURCE generic LABEL hermetic PREFIX b2-1.83
   ARGS "-DCASE_REQUIRED=headers,regex" -DCASE_FETCH=ON -DCASE_FLOOR=1.81

@@ -2,6 +2,10 @@
 # libraries; asking for any other component (e.g. a header-only one) fails, like real
 # b2 configs before 1.92.
 set(_fake_compiled random serialization unit_test_framework)
+# FAKE_B2_ABSENT: compiled libraries the distribution did not install (e.g. Ubuntu without libboost-test-dev)
+if(FAKE_B2_ABSENT)
+  list(REMOVE_ITEM _fake_compiled ${FAKE_B2_ABSENT})
+endif()
 if(NOT TARGET Boost::headers)
   add_library(Boost::headers INTERFACE IMPORTED)
   get_filename_component(_fake_inc "${CMAKE_CURRENT_LIST_DIR}/../../../include" ABSOLUTE)
