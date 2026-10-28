@@ -133,10 +133,16 @@ vgkit_boost_case(NAME fetch_superbuild_reconfigure SOURCE fetch_superbuild LABEL
   REGEX "RESULT sub built=ON[^\n]*callable_traits" FAIL_REGEX "already")
 # libraries requested only by the subproject are built and installed too
 set(FS ${CMAKE_CURRENT_BINARY_DIR}/fetch_superbuild)
+# Boost's default install layout is "versioned" (headers in include/boost-1_92) on Windows, "system" elsewhere
+if (WIN32)
+  set(_boost_incdir include/boost-1_92)
+else()
+  set(_boost_incdir include)
+endif()
 add_test(NAME fetch_superbuild_build COMMAND ${CMAKE_COMMAND} --build ${FS} --config Release --parallel 6)
 add_test(NAME fetch_superbuild_install COMMAND ${CMAKE_COMMAND} --install ${FS} --config Release --prefix ${FS}/inst)
 add_test(NAME fetch_superbuild_installed_files COMMAND ${CMAKE_COMMAND}
-  "-DGLOBS=${FS}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FS}/inst/lib/cmake/boost_callable_traits-1.92.0/*,${FS}/inst/lib/*boost_serialization*,${FS}/inst/lib/*boost_unit_test_framework*,${FS}/inst/include/boost/algorithm/string.hpp"
+  "-DGLOBS=${FS}/inst/lib/cmake/Boost-1.92.0/BoostConfig.cmake,${FS}/inst/lib/cmake/boost_callable_traits-1.92.0/*,${FS}/inst/lib/*boost_serialization*,${FS}/inst/lib/*boost_unit_test_framework*,${FS}/inst/${_boost_incdir}/boost/algorithm/string.hpp"
   -P ${PROJECT_SOURCE_DIR}/boost/check_files.cmake)
 set_tests_properties(fetch_superbuild_build fetch_superbuild_install fetch_superbuild_installed_files PROPERTIES LABELS fetch)
 set_tests_properties(fetch_superbuild_build PROPERTIES DEPENDS fetch_superbuild_reconfigure)
