@@ -5,7 +5,36 @@
 #
 
 include(CheckCXXSourceCompiles)
+include(CheckCXXSymbolExists)
 include(CMakePushCheckState)
+
+# Identifies the C++ standard library used by the C++ compiler (with the
+# current CMAKE_CXX_FLAGS, so e.g. -stdlib=libc++ is honored) from the
+# macro each library defines in its headers.
+#
+# Sets VGKIT_CXX_STDLIB in the caller's scope to one of
+# libc++, libstdc++, msvc-stl, unknown.
+macro(vgkit_check_cxx_stdlib)
+
+  cmake_push_check_state(RESET)
+  set(CMAKE_REQUIRED_QUIET TRUE)
+  check_cxx_symbol_exists(_LIBCPP_VERSION cstddef VGKIT_CXX_STDLIB_IS_LIBCXX)
+  check_cxx_symbol_exists(__GLIBCXX__ cstddef VGKIT_CXX_STDLIB_IS_LIBSTDCXX)
+  check_cxx_symbol_exists(_MSVC_STL_VERSION cstddef VGKIT_CXX_STDLIB_IS_MSVC_STL)
+  cmake_pop_check_state()
+
+  if (VGKIT_CXX_STDLIB_IS_LIBCXX)
+    set(VGKIT_CXX_STDLIB "libc++")
+  elseif (VGKIT_CXX_STDLIB_IS_LIBSTDCXX)
+    set(VGKIT_CXX_STDLIB "libstdc++")
+  elseif (VGKIT_CXX_STDLIB_IS_MSVC_STL)
+    set(VGKIT_CXX_STDLIB "msvc-stl")
+  else()
+    set(VGKIT_CXX_STDLIB "unknown")
+  endif()
+  message(STATUS "C++ standard library: ${VGKIT_CXX_STDLIB}")
+
+endmacro(vgkit_check_cxx_stdlib)
 
 # if TBB_FOUND is true will check for usable <execution> without TBB, then with TBB
 macro(vgkit_check_cxx_execution_header _prefix)
@@ -47,11 +76,14 @@ macro(vgkit_check_cxx_execution_header _prefix)
 
 endmacro(vgkit_check_cxx_execution_header)
 
-# Non-Apple Clang (e.g. Homebrew LLVM) may use its own libc++ headers
-# but link against the system's older libc++.  This causes linker errors
+# A compiler using libc++ (e.g. Homebrew LLVM Clang) may use its own libc++
+# headers but link against the system's older libc++.  This causes linker errors
 # for symbols (like std::__1::__hash_memory) that exist in the newer headers
-# but not the system library.  Detect the mismatch and, if possible, derive
-# -L/-rpath flags pointing to the toolchain's own libc++.
+# but not the system library.  Detect the mismatch and, for Clang with a
+# GNU-style driver, derive -L/-rpath flags pointing to the toolchain's own libc++.
+# The check runs only when vgkit_check_cxx_stdlib() reports libc++ and the
+# compiler is not AppleClang (whose libc++ comes with the SDK); it sets
+# VGKIT_CXX_STDLIB in the caller's scope.
 #
 # Usage:
 #   vgkit_check_libcxx_linker_mismatch()                    # detect only, warn if mismatch found
@@ -69,7 +101,8 @@ macro(vgkit_check_libcxx_linker_mismatch)
     endif()
   endforeach()
 
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND
+  vgkit_check_cxx_stdlib()
+  if (VGKIT_CXX_STDLIB STREQUAL "libc++" AND
       NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     cmake_push_check_state(RESET)
     check_cxx_source_compiles("
@@ -78,6 +111,17 @@ macro(vgkit_check_libcxx_linker_mismatch)
 int main() { std::unordered_map<std::string,int> m; m[\"k\"]=1; return 0; }
 " VGKIT_LIBCXX_LINKS_${PROJECT_NAME})
     cmake_pop_check_state()
+
+    # the remedy below is specific to Clang's GNU-style driver
+    if (NOT VGKIT_LIBCXX_LINKS_${PROJECT_NAME} AND
+        (NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR
+         CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"))
+      message(FATAL_ERROR
+        "The libc++ headers used by ${CMAKE_CXX_COMPILER} do not match the "
+        "libc++ library it links against. "
+        "Set CMAKE_EXE_LINKER_FLAGS and CMAKE_SHARED_LINKER_FLAGS to point "
+        "to the matching libc++.")
+    endif()
 
     if (NOT VGKIT_LIBCXX_LINKS_${PROJECT_NAME})
       # Derive libc++ lib dir: -print-resource-dir gives <root>/lib/clang/<ver>
