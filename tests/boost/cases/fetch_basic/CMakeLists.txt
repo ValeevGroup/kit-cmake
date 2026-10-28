@@ -11,6 +11,12 @@ set(Boost_FETCH_IF_MISSING ON)
 set(Boost_OLDEST_BOOST_VERSION 1.81)
 include(${vg_cmake_kit_SOURCE_DIR}/modules/FindOrFetchBoost.cmake)
 
+# under MSVC Boost.Assert adds its debugger visualizer from libs/assert/extra to the interface sources; do the same
+# elsewhere so that its installation is tested on every platform
+if (NOT MSVC)
+  target_sources(boost_assert PUBLIC ${boost_SOURCE_DIR}/libs/assert/extra/boost_assert.natvis)
+endif()
+
 include(${CMAKE_CURRENT_LIST_DIR}/../result.cmake)
 fofb_print_result("RESULT")
 file(WRITE ${CMAKE_BINARY_DIR}/boost-snippet.cmake "${Boost_CONFIG_FILE_CONTENTS}")
