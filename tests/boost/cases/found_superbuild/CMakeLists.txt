@@ -1,0 +1,12 @@
+# the top project finds Boost asking for little; a subproject then asks for a library the top project's
+# find_package imported only as a dependency (non-global, in the top directory)
+cmake_minimum_required(VERSION 3.25)
+project(fofb_found_superbuild LANGUAGES CXX)
+include(${CMAKE_CURRENT_LIST_DIR}/../isolate.cmake)
+set(Boost_REQUIRED_COMPONENTS headers random)
+set(Boost_FETCH_IF_MISSING OFF)
+set(Boost_OLDEST_BOOST_VERSION 1.81)
+include(${vg_cmake_kit_SOURCE_DIR}/modules/FindOrFetchBoost.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../result.cmake)
+fofb_print_result("RESULT top")
+add_subdirectory(sub)

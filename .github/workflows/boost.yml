@@ -1,0 +1,49 @@
+name: FindOrFetchBoost
+
+on:
+  push:
+    paths: [ 'modules/FindOrFetchBoost.cmake', 'tests/**', '.github/workflows/boost.yml' ]
+  pull_request:
+    paths: [ 'modules/FindOrFetchBoost.cmake', 'tests/**', '.github/workflows/boost.yml' ]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # hermetic: fake Boost installs; system: the distro/Homebrew Boost (b2-built)
+          - os: ubuntu-latest
+            labels: 'hermetic|system'
+          - os: macos-latest
+            labels: 'hermetic|system'
+          # fetch: builds Boost 1.92 from source with MSVC (incl. Spirit)
+          - os: windows-2025
+            labels: 'hermetic|fetch'
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Boost (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: sudo apt-get update && sudo apt-get install -y libboost-all-dev ninja-build
+
+      - name: Install Boost (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install boost ninja
+          echo "SYSTEM_BOOST_PREFIX=$(brew --prefix boost)" >> $GITHUB_ENV
+
+      - name: Setup MSVC
+        if: startsWith(matrix.os, 'windows')
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+
+      - name: Configure tests
+        shell: bash
+        run: cmake -S tests -B build -G Ninja -DSYSTEM_BOOST_PREFIX="${SYSTEM_BOOST_PREFIX}"
+
+      - name: Run tests
+        shell: bash
+        run: ctest --test-dir build -L '${{ matrix.labels }}' --output-on-failure

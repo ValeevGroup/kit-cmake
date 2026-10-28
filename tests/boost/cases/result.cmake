@@ -1,0 +1,12 @@
+# prints "<tag> built=ON|OFF modular=ON|OFF version=<v> targets=<list>"
+function(fofb_print_result tag)
+  set(_b OFF)
+  if (Boost_BUILT_FROM_SOURCE)
+    set(_b ON)
+  endif()
+  set(_m OFF)
+  if (Boost_IS_MODULARIZED)
+    set(_m ON)
+  endif()
+  message(STATUS "${tag} built=${_b} modular=${_m} version=${Boost_VERSION} targets=${Boost_FOUND_TARGETS}")
+endfunction()
