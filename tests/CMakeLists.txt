@@ -120,3 +120,14 @@ set_tests_properties(fetch_superbuild_build fetch_superbuild_install fetch_super
 set_tests_properties(fetch_superbuild_build PROPERTIES DEPENDS fetch_superbuild_reconfigure)
 set_tests_properties(fetch_superbuild_install PROPERTIES DEPENDS fetch_superbuild_build)
 set_tests_properties(fetch_superbuild_installed_files PROPERTIES DEPENDS fetch_superbuild_install PASS_REGULAR_EXPRESSION "RESULT files=OK")
+
+# --- the Boost installed on this system (skipped if none); SYSTEM_BOOST_PREFIX points at a non-default location
+set(_system_args)
+if (SYSTEM_BOOST_PREFIX)
+  set(_system_args -DCMAKE_PREFIX_PATH=${SYSTEM_BOOST_PREFIX})
+endif()
+vgkit_boost_case(NAME system_boost SOURCE system_boost LABEL system ARGS ${_system_args}
+  REGEX "RESULT built=OFF modular=ON version=[0-9.]+ targets=[^\n]*container_hash[^\n]*numeric_conversion")
+set_tests_properties(system_boost PROPERTIES SKIP_REGULAR_EXPRESSION "SKIP: no system Boost")
+add_test(NAME system_boost_build COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/system_boost)
+set_tests_properties(system_boost_build PROPERTIES LABELS system DEPENDS system_boost)

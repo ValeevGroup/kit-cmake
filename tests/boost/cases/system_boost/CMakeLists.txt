@@ -1,0 +1,18 @@
+# Boost installed on the system (Homebrew, apt, vcpkg via CMAKE_PREFIX_PATH, ...): found, not fetched;
+# header-only components usable as targets whatever the install flavor.
+cmake_minimum_required(VERSION 3.25)
+project(fofb_system LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+find_package(Boost 1.81 CONFIG QUIET)
+if (NOT Boost_FOUND)
+  message(STATUS "SKIP: no system Boost")
+  return()
+endif()
+set(Boost_REQUIRED_COMPONENTS headers container_hash numeric_conversion random serialization)
+set(Boost_FETCH_IF_MISSING OFF)
+set(Boost_OLDEST_BOOST_VERSION 1.81)
+include(${vg_cmake_kit_SOURCE_DIR}/modules/FindOrFetchBoost.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../result.cmake)
+fofb_print_result("RESULT")
+add_executable(fofb_system main.cpp)
+target_link_libraries(fofb_system PRIVATE Boost::container_hash Boost::numeric_conversion Boost::random)
