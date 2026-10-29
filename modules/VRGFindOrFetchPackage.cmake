@@ -69,7 +69,6 @@ function(VRGFindOrFetchPackage name url tag)
         list(APPEND fcd_args ${VRGFFP_EPADD_ARGS})
     endif()
 
-    message(WARNING "fcd_args=${fcd_args}")
     FetchContent_Declare(
             ${fcd_args}
     )
