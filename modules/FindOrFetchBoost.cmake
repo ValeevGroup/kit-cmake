@@ -339,11 +339,42 @@ if (__vgkit_boost_fetch)
     message(FATAL_ERROR "FindOrFetchBoost: Boost was not found by project ${PROJECT_NAME} and Boost_FETCH_IF_MISSING=ON, but Boost was already populated via FetchContent without being added to the build")
   endif()
 
+  # patches for the fetched Boost release (keyed on the Boost version since the bugs are in Boost's sources)
+  set(__vgkit_boost_patch_command)
+  if (vgkit_boost_fetch_version VERSION_EQUAL 1.92.0)
+    # Boost.Locale 1.92.0 passes include/boost/locale.hpp to source_group(TREE include/boost/locale ...),
+    # which CMake >= 4.5 rejects ("... is not a prefix of file ..."), see boostorg/boost#1162; backport of
+    # boostorg/locale#273 (excludes locale.hpp from the TREE group; it is grouped explicitly right after).
+    # The script is idempotent and harmless with older CMake versions.
+    set(__vgkit_boost_patch_script "${CMAKE_BINARY_DIR}/vgkit-boost/patch-boost-1.92.0.cmake")
+    file(WRITE "${__vgkit_boost_patch_script}" [=[
+set(_file "libs/locale/CMakeLists.txt")
+if (NOT EXISTS "${_file}")
+  return()
+endif()
+file(READ "${_file}" _contents)
+set(_anchor "list(FILTER sources_inc EXCLUDE REGEX \"^src/\")\n")
+set(_fix "list(FILTER sources_inc EXCLUDE REGEX \"(^|/)include/boost/locale\\\\.hpp$\")  # vgkit: boostorg/locale#273\n")
+string(FIND "${_contents}" "${_fix}" _patched)
+if (_patched EQUAL -1)
+  string(FIND "${_contents}" "${_anchor}" _pos)
+  if (_pos EQUAL -1)
+    message(WARNING "FindOrFetchBoost: Boost.Locale CMakeLists.txt not as expected, not patched")
+  else()
+    string(REPLACE "${_anchor}" "${_anchor}${_fix}" _contents "${_contents}")
+    file(WRITE "${_file}" "${_contents}")
+  endif()
+endif()
+]=])
+    set(__vgkit_boost_patch_command PATCH_COMMAND "${CMAKE_COMMAND}" -P "${__vgkit_boost_patch_script}")
+  endif()
+
   FetchContent_Declare(
           Boost
           URL https://github.com/boostorg/boost/releases/download/boost-${vgkit_boost_fetch_version}/boost-${vgkit_boost_fetch_version}-cmake.tar.xz
           URL_HASH SHA256=${vgkit_boost_fetch_sha256}
           DOWNLOAD_EXTRACT_TIMESTAMP ON
+          ${__vgkit_boost_patch_command}
           EXCLUDE_FROM_ALL
           SYSTEM
   )
